@@ -1,0 +1,52 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  The User service is part of the ACME Serverless Shop. The goal of this specific service is to register and authenticate users using JWT tokens.
+
+Globals:
+  Function:
+    Timeout: 5
+    Environment:
+      Variables:
+        REGION: !Ref AWS::Region
+        WAVEFRONT_ENABLED: true
+        WAVEFRONT_URL: !Ref WavefrontURL
+        WAVEFRONT_API_TOKEN: !Ref WavefrontToken
+
+Parameters:
+  Version:
+    Type: String
+  User:
+    Type: String
+  Team:
+    Type: String
+  Feature:
+    Type: String
+    Default: acmeserverless
+  Stage:
+    Type: String
+    Default: dev
+  WavefrontURL:
+    Type: String
+  WavefrontToken:
+    Type: String
+
+Resources:
+  UserTable: 
+    Type: AWS::DynamoDB::Table
+    Properties: 
+      AttributeDefinitions: 
+        - AttributeName: "ID"
+          AttributeType: "S"
+      KeySchema: 
+        - AttributeName: "ID"
+          KeyType: "HASH"
+      ProvisionedThroughput: 
+        ReadCapacityUnits: "10"
+        WriteCapacityUnits: "10"
+      TableName: "User"
+
+Outputs:  
+  UserTableARN:
+    Description: ARN for the User DynamoDB Table
+    Value: !GetAtt UserTable.Arn

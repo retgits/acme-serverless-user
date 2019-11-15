@@ -1,0 +1,15 @@
+version: 0.2
+env:
+  variables:
+    GOOS: "linux"
+    GOARCH: "amd64"
+    GOPROXY: "https://proxy.golang.org,direct"
+phases:
+  install:
+    runtime-versions:
+      golang: 1.13
+    commands:
+      - make deps 
+  build:
+    commands:
+      - make deploy
