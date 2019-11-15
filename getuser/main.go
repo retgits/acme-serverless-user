@@ -10,7 +10,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/gofrs/uuid"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/retgits/user"
 	wflambda "github.com/wavefronthq/wavefront-lambda-go"
@@ -52,52 +51,40 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	// Create a DynamoDB session
 	dbs := dynamodb.New(awsSession)
 
-	// Update the user with an ID
-	usr, err := user.UnmarshalUser(request.Body)
-	if err != nil {
-		return logError("unmarshalling user", err)
-	}
-	usr.ID = uuid.Must(uuid.NewV4()).String()
-
-	// Marshal the newly updated user struct
-	payload, err := usr.Marshal()
-	if err != nil {
-		return logError("marshalling user", err)
-	}
+	// Create the key attributes
+	userID := request.PathParameters["id"]
 
 	// Create a map of DynamoDB Attribute Values containing the table keys
 	km := make(map[string]*dynamodb.AttributeValue)
-	km["ID"] = &dynamodb.AttributeValue{
-		S: aws.String(usr.ID),
+	km[":userid"] = &dynamodb.AttributeValue{
+		S: aws.String(userID),
 	}
 
-	em := make(map[string]*dynamodb.AttributeValue)
-	em[":content"] = &dynamodb.AttributeValue{
-		S: aws.String(payload),
-	}
-	em[":username"] = &dynamodb.AttributeValue{
-		S: aws.String(usr.Username),
-	}
-
-	uii := &dynamodb.UpdateItemInput{
+	si := &dynamodb.ScanInput{
 		TableName:                 aws.String(c.DynamoDBTable),
-		Key:                       km,
-		ExpressionAttributeValues: em,
-		UpdateExpression:          aws.String("SET UserContent = :content, UserName = :username"),
+		ExpressionAttributeValues: km,
+		FilterExpression:          aws.String("ID = :userid"),
 	}
 
-	_, err = dbs.UpdateItem(uii)
+	so, err := dbs.Scan(si)
 	if err != nil {
-		return logError("updating dynamodb", err)
+		return logError("scanning dynamodb", err)
 	}
 
-	status := user.RegisterResponse{
-		Message:    "User created successfully!",
-		ResourceID: usr.ID,
-		Status:     http.StatusOK,
+	if len(so.Items) == 0 {
+		if err != nil {
+			return logError("retrieving user data", fmt.Errorf("no user found with id %s", userID))
+		}
 	}
 
-	statusPayload, err := status.Marshal()
+	str := *so.Items[0]["UserContent"].S
+	usr, err := user.UnmarshalUser(str)
+	if err != nil {
+		errormessage := fmt.Sprintf("error unmarshalling user data: %s", err.Error())
+		log.Println(errormessage)
+	}
+
+	statusPayload, err := usr.Marshal()
 	if err != nil {
 		return logError("marshalling response", err)
 	}

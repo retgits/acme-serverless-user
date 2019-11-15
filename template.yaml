@@ -38,6 +38,8 @@ Resources:
       AttributeDefinitions: 
         - AttributeName: "ID"
           AttributeType: "S"
+        - AttributeName: "UserName"
+          AttributeType: "S"
       KeySchema: 
         - AttributeName: "ID"
           KeyType: "HASH"
@@ -45,6 +47,16 @@ Resources:
         ReadCapacityUnits: "10"
         WriteCapacityUnits: "10"
       TableName: "User"
+      GlobalSecondaryIndexes: 
+        - IndexName: "UserName"
+          KeySchema: 
+            - AttributeName: "UserName"
+              KeyType: "HASH"
+          Projection: 
+            ProjectionType: "ALL"
+          ProvisionedThroughput: 
+            ReadCapacityUnits: "10"
+            WriteCapacityUnits: "10"
   Register:
     Type: AWS::Serverless::Function
     Properties:
@@ -64,10 +76,132 @@ Resources:
         Variables:
           TABLENAME: !Ref UserTable
       Events:
-        CreateAPI:
+        RegisterAPI:
           Type: Api
           Properties:
             Path: /register
+            Method: POST
+      Tags:
+        version: !Ref Version
+        author: !Ref User
+        team: !Ref Team
+        feature: !Ref Feature
+        region: !Ref AWS::Region
+      VersionDescription: !Ref Version
+  AllUsers:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: allusers
+      Runtime: go1.x
+      CodeUri: bin/
+      FunctionName: AllUsers
+      Description: A Lambda function to get all users from DynamoDB
+      MemorySize: 256
+      Timeout: 10
+      Policies:
+        - AWSLambdaRole
+        - AWSLambdaSQSQueueExecutionRole
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UserTable
+      Environment:
+        Variables:
+          TABLENAME: !Ref UserTable
+      Events:
+        AllUsersAPI:
+          Type: Api
+          Properties:
+            Path: /users
+            Method: GET
+      Tags:
+        version: !Ref Version
+        author: !Ref User
+        team: !Ref Team
+        feature: !Ref Feature
+        region: !Ref AWS::Region
+      VersionDescription: !Ref Version
+  GetUser:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: getuser
+      Runtime: go1.x
+      CodeUri: bin/
+      FunctionName: GetUser
+      Description: A Lambda function to get a user from DynamoDB
+      MemorySize: 256
+      Timeout: 10
+      Policies:
+        - AWSLambdaRole
+        - AWSLambdaSQSQueueExecutionRole
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UserTable
+      Environment:
+        Variables:
+          TABLENAME: !Ref UserTable
+      Events:
+        AllUsersAPI:
+          Type: Api
+          Properties:
+            Path: /users/{id}
+            Method: GET
+      Tags:
+        version: !Ref Version
+        author: !Ref User
+        team: !Ref Team
+        feature: !Ref Feature
+        region: !Ref AWS::Region
+      VersionDescription: !Ref Version
+  Login:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: login
+      Runtime: go1.x
+      CodeUri: bin/
+      FunctionName: Login
+      Description: A Lambda function to login
+      MemorySize: 256
+      Timeout: 10
+      Policies:
+        - AWSLambdaRole
+        - AWSLambdaSQSQueueExecutionRole
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UserTable
+      Environment:
+        Variables:
+          TABLENAME: !Ref UserTable
+      Events:
+        RegisterAPI:
+          Type: Api
+          Properties:
+            Path: /login
+            Method: POST
+      Tags:
+        version: !Ref Version
+        author: !Ref User
+        team: !Ref Team
+        feature: !Ref Feature
+        region: !Ref AWS::Region
+      VersionDescription: !Ref Version
+  VerifyToken:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: verifytoken
+      Runtime: go1.x
+      CodeUri: bin/
+      FunctionName: VerifyToken
+      Description: A Lambda function to verify a JWT token
+      MemorySize: 256
+      Timeout: 10
+      Policies:
+        - AWSLambdaRole
+        - AWSLambdaSQSQueueExecutionRole
+      Environment:
+        Variables:
+          TABLENAME: !Ref UserTable
+      Events:
+        RegisterAPI:
+          Type: Api
+          Properties:
+            Path: /verify-token
             Method: POST
       Tags:
         version: !Ref Version
@@ -83,3 +217,15 @@ Outputs:
   RegisterURL:
     Description: "API Gateway endpoint URL to register users"
     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/register/"
+  AllUsersURL:
+    Description: "API Gateway endpoint URL to get all users"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/users/"
+  GetUserURL:
+    Description: "API Gateway endpoint URL to get a user"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/users/{id}"
+  LoginURL:
+    Description: "API Gateway endpoint URL to login"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/login/"
+  VerifyTokenURL:
+    Description: "API Gateway endpoint URL to verify the token"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/verify-token/"
