@@ -62,6 +62,7 @@ build: ## Build the executable for Lambda
 	GOOS=linux GOARCH=amd64 go build -o bin/getuser ./getuser
 	GOOS=linux GOARCH=amd64 go build -o bin/login ./login
 	GOOS=linux GOARCH=amd64 go build -o bin/verifytoken ./verifytoken
+	GOOS=linux GOARCH=amd64 go build -o bin/refreshtoken ./refreshtoken
 	echo
 
 clean: ## Remove all generated files

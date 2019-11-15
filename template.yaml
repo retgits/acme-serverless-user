@@ -210,6 +210,35 @@ Resources:
         feature: !Ref Feature
         region: !Ref AWS::Region
       VersionDescription: !Ref Version
+  RefreshToken:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: refreshtoken
+      Runtime: go1.x
+      CodeUri: bin/
+      FunctionName: RefreshToken
+      Description: A Lambda function to refresh a JWT token
+      MemorySize: 256
+      Timeout: 10
+      Policies:
+        - AWSLambdaRole
+        - AWSLambdaSQSQueueExecutionRole
+      Environment:
+        Variables:
+          TABLENAME: !Ref UserTable
+      Events:
+        RegisterAPI:
+          Type: Api
+          Properties:
+            Path: /refresh-token
+            Method: POST
+      Tags:
+        version: !Ref Version
+        author: !Ref User
+        team: !Ref Team
+        feature: !Ref Feature
+        region: !Ref AWS::Region
+      VersionDescription: !Ref Version
 Outputs:  
   UserTableARN:
     Description: ARN for the User DynamoDB Table
@@ -229,3 +258,6 @@ Outputs:
   VerifyTokenURL:
     Description: "API Gateway endpoint URL to verify the token"
     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/verify-token/"
+  RefreshTokenURL:
+    Description: "API Gateway endpoint URL to refresh the token"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/refresh-token/"
