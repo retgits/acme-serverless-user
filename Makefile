@@ -57,6 +57,7 @@ test: ## Run all unit tests and print coverage
 
 build: ## Build the executable for Lambda
 	echo
+	GOOS=linux GOARCH=amd64 go build -o bin/register ./register
 	echo
 
 clean: ## Remove all generated files
