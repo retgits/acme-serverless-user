@@ -53,6 +53,7 @@ deps: ## Get the Go modules from the GOPROXY
 test: ## Run all unit tests and print coverage
 	echo
 	go test -cover ./...
+	snyk test
 	echo
 
 build: ## Build the executable for Lambda
