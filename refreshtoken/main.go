@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/retgits/user"
-	wflambda "github.com/wavefronthq/wavefront-lambda-go"
+	wflambda "github.com/retgits/wavefront-lambda-go"
 )
 
 var wfAgent = wflambda.NewWavefrontAgent(&wflambda.WavefrontConfig{})

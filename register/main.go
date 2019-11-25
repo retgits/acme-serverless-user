@@ -13,7 +13,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/retgits/user"
-	wflambda "github.com/wavefronthq/wavefront-lambda-go"
+	wflambda "github.com/retgits/wavefront-lambda-go"
 )
 
 var wfAgent = wflambda.NewWavefrontAgent(&wflambda.WavefrontConfig{})

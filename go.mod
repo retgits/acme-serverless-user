@@ -9,12 +9,7 @@ require (
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/gofrs/uuid v3.2.0+incompatible
 	github.com/kelseyhightower/envconfig v1.4.0
-	github.com/leesper/go_rng v0.0.0-20190531154944-a612b043e353 // indirect
+	github.com/retgits/wavefront-lambda-go v0.1.1-0.20191125162950-829ba5810925
 	github.com/sirupsen/logrus v1.4.2 // indirect
-	github.com/wavefronthq/wavefront-lambda-go v0.0.0-20191029210830-5fe579f2b811
 	go.uber.org/zap v1.13.0 // indirect
-	golang.org/x/net v0.0.0-20191105084925-a882066a44e0 // indirect
-	gonum.org/v1/gonum v0.6.0 // indirect
 )
-
-replace github.com/wavefronthq/wavefront-lambda-go => /Users/lstigter/repos/github.com/retgits/wavefront-lambda-go
