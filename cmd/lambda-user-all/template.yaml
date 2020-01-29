@@ -1,0 +1,67 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+## A text string that describes the template.
+Description: >
+  The User service is part of the ACME Fitness Serverless Shop. The goal of this specific service is to register and authenticate users using JWT tokens.
+
+## Values to pass to your template at runtime (when you create or update a stack).
+Parameters:
+  Version:
+    Type: String
+  Author:
+    Type: String
+  Team:
+    Type: String
+  Feature:
+    Type: String
+    Default: acmeserverless
+  Stage:
+    Type: String
+    Default: dev
+
+## Specifies the stack resources and their properties.
+Resources:
+  AllUsers:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda-user-all
+      Runtime: go1.x
+      CodeUri: bin/
+      FunctionName: AllUsers
+      Description: A Lambda function to get all users from DynamoDB
+      MemorySize: 256
+      Timeout: 10
+      Tracing: Active
+      Policies:
+        - AWSLambdaRole
+        - DynamoDBCrudPolicy:
+            TableName: "User"
+      Environment:
+        Variables:
+          TABLE: "User"
+      Events:
+        AllUsersAPI:
+          Type: Api
+          Properties:
+            Path: /users
+            Method: GET
+      Tags:
+        version: !Ref Version
+        author: !Ref Author
+        team: !Ref Team
+        feature: !Ref Feature
+        region: !Ref AWS::Region
+      VersionDescription: !Ref Version
+  AllUsersLogGroup:
+    Type: "AWS::Logs::LogGroup"
+    DependsOn: "AllUsers"
+    Properties: 
+      RetentionInDays: 1
+      LogGroupName: !Join ["", ["/aws/lambda/", !Ref AllUsers]]
+
+## Describes the values that are returned whenever you view your stack's properties.
+Outputs:
+  AllUsersURL:
+    Description: "API Gateway endpoint URL to get all users"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/users/"

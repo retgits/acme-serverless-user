@@ -4,16 +4,12 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/dgrijalva/jwt-go"
-	"github.com/retgits/user"
-	wflambda "github.com/retgits/wavefront-lambda-go"
+	user "github.com/retgits/acme-serverless-user"
 )
-
-var wfAgent = wflambda.NewWavefrontAgent(&wflambda.WavefrontConfig{})
 
 var (
 	// AtJwtKey is used to create the Access token signature
@@ -22,12 +18,12 @@ var (
 	RtJwtKey = []byte("my_secret_key_2")
 )
 
-func logError(stage string, err error) (events.APIGatewayProxyResponse, error) {
-	errormessage := fmt.Sprintf("error %s: %s", stage, err.Error())
-	log.Println(errormessage)
+func handleError(area string, err error) (events.APIGatewayProxyResponse, error) {
+	msg := fmt.Sprintf("error %s: %s", area, err.Error())
+	log.Println(msg)
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusInternalServerError,
-		Body:       errormessage,
+		Body:       msg,
 	}, err
 }
 
@@ -37,39 +33,27 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	// Create the key attributes
 	login, err := user.UnmarshalLoginResponse(request.Body)
 	if err != nil {
-		return logError("unmarshalling login", err)
+		return handleError("unmarshalling login", err)
 	}
 
-	valid, id, _, err := ValidateToken(login.RefreshToken)
+	valid, _, key, err := ValidateToken(login.AccessToken)
 
-	if !valid || id == "" {
-		res := user.VerifyTokenResponse{
-			Message: "Invalid Key. User Not Authorized",
-			Status:  http.StatusForbidden,
-		}
-		statusPayload, err := res.Marshal()
-		if err != nil {
-			return logError("marshalling response", err)
-		}
-		response.StatusCode = res.Status
-		response.Body = statusPayload
-		return response, nil
+	res := user.VerifyTokenResponse{
+		Message: "Token Valid. User Authorized",
+		Status:  http.StatusOK,
 	}
 
-	newToken, _ := GenerateAccessToken("eric", id)
-
-	res := user.LoginResponse{
-		AccessToken:  newToken,
-		RefreshToken: login.RefreshToken,
-		Status:       http.StatusOK,
+	if !valid || key != "signin_1" {
+		res.Message = "Invalid Key. User Not Authorized"
+		res.Status = http.StatusForbidden
 	}
 
 	statusPayload, err := res.Marshal()
 	if err != nil {
-		return logError("marshalling response", err)
+		return handleError("marshalling response", err)
 	}
 
-	response.StatusCode = http.StatusOK
+	response.StatusCode = res.Status
 	response.Body = statusPayload
 
 	return response, nil
@@ -77,29 +61,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 // The main method is executed by AWS Lambda and points to the handler
 func main() {
-	lambda.Start(wfAgent.WrapHandler(handler))
-}
-
-func GenerateAccessToken(username string, uuid string) (string, error) {
-	// Declare the expiration time of the access token
-	// Here the expiration is 5 minutes
-	expirationTimeAccessToken := time.Now().Add(5 * time.Minute).Unix()
-
-	// Declare the token with the algorithm used for signing, and the claims
-	token := jwt.New(jwt.SigningMethodHS256)
-	token.Header["kid"] = "signin_1"
-	claims := token.Claims.(jwt.MapClaims)
-	claims["Username"] = username
-	claims["exp"] = expirationTimeAccessToken
-	claims["sub"] = uuid
-
-	// Create the JWT string
-	tokenString, err := token.SignedString(AtJwtKey)
-	if err != nil {
-		return "", err
-	}
-
-	return tokenString, nil
+	lambda.Start(handler)
 }
 
 // ValidateToken is used to validate both access_token and refresh_token. It is done based on the "Key ID" provided by the JWT

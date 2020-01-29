@@ -1,0 +1,65 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+## A text string that describes the template.
+Description: >
+  The User service is part of the ACME Fitness Serverless Shop. The goal of this specific service is to register and authenticate users using JWT tokens.
+
+## Values to pass to your template at runtime (when you create or update a stack).
+Parameters:
+  Version:
+    Type: String
+  Author:
+    Type: String
+  Team:
+    Type: String
+  Feature:
+    Type: String
+    Default: acmeserverless
+  Stage:
+    Type: String
+    Default: dev
+
+## Specifies the stack resources and their properties.
+Resources:
+  RefreshToken:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda-user-refreshtoken
+      Runtime: go1.x
+      CodeUri: bin/
+      FunctionName: RefreshToken
+      Description: A Lambda function to refresh a JWT token
+      MemorySize: 256
+      Timeout: 10
+      Tracing: Active
+      Policies:
+        - AWSLambdaRole
+      Environment:
+        Variables:
+          TABLE: "User"
+      Events:
+        RegisterAPI:
+          Type: Api
+          Properties:
+            Path: /refresh-token
+            Method: POST
+      Tags:
+        version: !Ref Version
+        author: !Ref Author
+        team: !Ref Team
+        feature: !Ref Feature
+        region: !Ref AWS::Region
+      VersionDescription: !Ref Version
+  RefreshTokenLogGroup:
+    Type: "AWS::Logs::LogGroup"
+    DependsOn: "RefreshToken"
+    Properties: 
+      RetentionInDays: 1
+      LogGroupName: !Join ["", ["/aws/lambda/", !Ref RefreshToken]]
+
+## Describes the values that are returned whenever you view your stack's properties.
+Outputs:
+  RefreshTokenURL:
+    Description: "API Gateway endpoint URL to refresh the token"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/refresh-token/"

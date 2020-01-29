@@ -1,0 +1,8 @@
+config:
+  stage: dev
+  project: payment
+  author: retgits
+  team: vcs
+  app: lambda-user-all
+  aws:
+    bucket: %%AWS_S3_BUCKET%%
