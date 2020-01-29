@@ -2,7 +2,7 @@
 
 > A user service, because what is a shop without users to buy our awesome red pants?
 
-The User service is part of the [ACME Fitness Serverless Shop](https://github.com/vmwarecloudadvocacy/acme_fitness_demo). The goal of this specific service is to register and authenticate users using JWT tokens.
+The User service is part of the [ACME Fitness Serverless Shop](https://github.com/retgits/acme-serverless). The goal of this specific service is to register and authenticate users using JWT tokens.
 
 ## Prerequisites
 
