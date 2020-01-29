@@ -11,7 +11,7 @@
 stage         	:= dev
 
 ## The name of the project
-project_name  	:= user-login
+project_name  	:= user-dynamodb
 
 ## The author of the project
 author          := retgits
@@ -26,39 +26,28 @@ version       	:= $(strip $(if $(shell git describe --tags --always --dirty="-de
 aws_bucket    	?= $$AWS_S3_BUCKET
 
 # Suppress checking files and all Make output
-.PHONY: help build vuln clean deploy destroy
-.SILENT: help build vuln clean deploy destroy
+.PHONY: help clean deploy destroy
+.SILENT: help clean deploy destroy
 
 # Targets
 help: ## Displays the help for each target (this message)
 	echo
 	echo Usage: make [TARGET]
 	echo
-	echo Makefile targets
-	grep -E '^[a-zA-Z_-]+:.*?## .*$$' Makefile | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
-	echo
-
-build: ## Build the executable for Lambda
-	echo
-	GOOS=linux GOARCH=amd64 go build -o ./bin/lambda-user-login .
-	echo
-
-vuln: ## Scans the Go.mod file for known vulnerabilities using Snyk.
-	echo
-	snyk test --file=../../go.mod
+	echo Makefile targets for DynamoDB
+	grep -E '^[a-zA-Z_-]+:.*?## .*$$' Makefile.dynamodb | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 	echo
 
 clean: ## Remove all generated files
 	echo
-	-rm -rf bin
-	-rm packaged.yaml
+	-rm dynamodb-packaged.yaml
 	echo
 
-deploy: ## Deploy the app to AWS Lambda
+deploy: ## Deploy the table to Amazon DynamoDB
 	echo
-	aws cloudformation package --template-file template.yaml --output-template-file packaged.yaml --s3-bucket $(aws_bucket)
+	aws cloudformation package --template-file dynamodb-template.yaml --output-template-file dynamodb-packaged.yaml --s3-bucket $(aws_bucket)
 	aws cloudformation deploy \
-		--template-file packaged.yaml \
+		--template-file dynamodb-packaged.yaml \
 		--stack-name $(project_name)-$(stage) \
 		--capabilities CAPABILITY_IAM \
 		--parameter-overrides Version=$(version) \

@@ -45,4 +45,4 @@ vendor/
 bin/
 
 # AWS Lambda
-packaged.yaml
+*packaged.yaml

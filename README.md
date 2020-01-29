@@ -6,19 +6,19 @@ The User service is part of the [ACME Fitness Serverless Shop](https://github.co
 
 ## Prerequisites
 
-* [Go (at least Go 1.12)](https://golang.org/dl/)
-* [An AWS Account](https://portal.aws.amazon.com/billing/signup)
-* The _vuln_ targets for Make and Mage rely on the [Snyk](http://snyk.io/) CLI
+* [Go (at least Go 1.12)](https://golang.org/dl/);
+* [An AWS Account](https://portal.aws.amazon.com/billing/signup);
+* The _vuln_ targets for Make and Mage rely on the [Snyk](http://snyk.io/) CLI.
 
 ## Eventing Options
 
-The catalog service has Lambdas triggered by [Amazon API Gateway](https://aws.amazon.com/api-gateway/)
+The Lambda functions of the user service are triggered by [Amazon API Gateway](https://aws.amazon.com/api-gateway/).
 
 ## Data Stores
 
-The order service supports the following data stores:
+The user service supports the following data stores:
 
-* [Amazon DynamoDB](https://aws.amazon.com/dynamodb/). The table can be created using the makefile in [create-dynamodb](./cmd/create-dynamodb).
+* [Amazon DynamoDB](https://aws.amazon.com/dynamodb/): With [Makefile.dynamodb](./deploy/cloudformation), you can run run `make -f Makefile.dynamodb deploy` to create the DynamoDB table.
 
 ## Using Amazon API Gateway
 
@@ -41,10 +41,10 @@ Get the Go Module dependencies
 go get ./...
 ```
 
-Switch directories to any of the Lambda folders
+Change directories to the [deploy/cloudformation](./deploy/cloudformation) folder
 
 ```bash
-cd ./cmd/lambda-catalog-<name>
+cd ./deploy/cloudformation
 ```
 
 Use make to deploy
@@ -66,7 +66,7 @@ Returns the list of all users
 
 ```bash
 curl --request GET \
-  --url http://localhost:8081/users
+  --url https://<api>.execute-api.us-west-2.amazonaws.com/Prod/users
 ```
 
 ```json
@@ -95,7 +95,7 @@ Returns details about a specific user id
 
 ```bash
 curl --request GET \
-  --url http://localhost:8081/users/5c61ed848d891bd9e8016899
+  --url https://<api>.execute-api.us-west-2.amazonaws.com/Prod/users/5c61ed848d891bd9e8016899
 ```
 
 ```json
@@ -117,7 +117,7 @@ Authenticate and Login user
 
 ```bash
 curl --request POST \
-  --url http://localhost:8081/login \
+  --url https://<api>.execute-api.us-west-2.amazonaws.com/Prod/login \
   --header 'content-type: application/json' \
   --data '{ 
     "username": "username",
@@ -152,7 +152,7 @@ Request new access_token by using the `refresh_token`
 
 ```bash
 curl --request POST \
-  --url http://localhost:8081/refresh-token \
+  --url https://<api>.execute-api.us-west-2.amazonaws.com/Prod/refresh-token \
   --header 'content-type: application/json' \
   --data '{
     "refresh_token" : "eyJhbGciOiJIUzI1NiIsImtpZCI6InNpZ25pbl8yIiwidHlwIjoiSldUIn0.eyJleHAiOjE1NzA3NjM1NzksInN1YiI6IjVkOTNlMTFjNmY4Zjk4YzlmYjI0ZGU0NiJ9.zwGB1340IVMLjMf_UnFC_rEeNdD131OGPcg_S0ea8DE"
@@ -183,7 +183,7 @@ Verify access_token
 
 ```bash
 curl --request POST \
-  --url http://localhost:8081/verify-token \
+  --url https://<api>.execute-api.us-west-2.amazonaws.com/Prod/verify-token \
   --header 'content-type: application/json' \
   --data '{
     "access_token": "eyJhbGciOiJIUzI1NiIsImtpZCI6InNpZ25pbl8xIiwidHlwIjoiSldUIn0.eyJVc2VybmFtZSI6ImVyaWMiLCJleHAiOjE1NzA3NjMyMjksInN1YiI6IjVkOTNlMTFjNmY4Zjk4YzlmYjI0ZGU0NiJ9.wrWsDNor28aWv6huKUHAuVyROGAXqjO5luPfa5K5NQI"
@@ -222,7 +222,7 @@ Register/Create new user
 
 ```bash
 curl --request POST \
-  --url http://localhost:8081/register \
+  --url https://<api>.execute-api.us-west-2.amazonaws.com/Prod/register \
   --header 'content-type: application/json' \
   --data '{
     "username":"peterp",
@@ -254,6 +254,35 @@ When the user is successfully created, an HTTP/201 message is returned
     "status": 201
 }
 ```
+
+## Using Make
+
+The Makefiles in the [Cloudformation](./deploy/cloudformation) directory have a few a bunch of options available:
+
+| Target  | Description                                                |
+|---------|------------------------------------------------------------|
+| build   | Build the executable for Lambda                            |
+| clean   | Remove all generated files                                 |
+| deploy  | Deploy the app to AWS                                      |
+| destroy | Deletes the CloudFormation stack and all created resources |
+| help    | Displays the help for each target (this message)           |
+| vuln    | Scans the Go.mod file for known vulnerabilities using Snyk |
+
+## Using Mage
+
+If you want to "go all Go" (_pun intended_) and write plain-old go functions to build and deploy, you can use [Mage](https://magefile.org/). Mage is a make/rake-like build tool using Go so Mage automatically uses the functions you create as Makefile-like runnable targets.
+
+### Prerequisites for Mage
+
+To use Mage, you'll need to install it first:
+
+```bash
+go get -u -d github.com/magefile/mage
+cd $GOPATH/src/github.com/magefile/mage
+go run bootstrap.go
+```
+
+Instructions curtesy of Mage
 
 ## Contributing
 
