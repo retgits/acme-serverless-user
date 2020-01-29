@@ -284,6 +284,19 @@ go run bootstrap.go
 
 Instructions curtesy of Mage
 
+### Targets
+
+The Magefile in this repository has a bunch of targets available:
+
+| Target | Description                                                                                              |
+|--------|----------------------------------------------------------------------------------------------------------|
+| build  | compiles the individual commands in the cmd folder, along with their dependencies.                       |
+| clean  | removes object files from package source directories.                                                    |
+| deploy | packages, deploys, and returns all outputs of your stack.                                                |
+| deps   | resolves and downloads dependencies to the current development module and then builds and installs them. |
+| test   | 'Go test' automates testing the packages named by the import paths.                                      |
+| vuln   | uses Snyk to test for any known vulnerabilities in go.mod.                                               |
+
 ## Contributing
 
 [Pull requests](https://github.com/retgits/acme-serverless-user/pulls) are welcome. For major changes, please open [an issue](https://github.com/retgits/acme-serverless-user/issues) first to discuss what you would like to change.
