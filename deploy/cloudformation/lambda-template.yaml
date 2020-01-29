@@ -58,7 +58,7 @@ Resources:
     DependsOn: "AllUsers"
     Properties: 
       RetentionInDays: 1
-      LogGroupName: !Join ["", ["/aws/lambda/", !Ref AllUsers]]
+      LogGroupName: !Join ["", ["/aws/lambda/user/", !Ref AllUsers]]
   GetUser:
     Type: AWS::Serverless::Function
     Properties:
@@ -95,7 +95,7 @@ Resources:
     DependsOn: "GetUser"
     Properties: 
       RetentionInDays: 1
-      LogGroupName: !Join ["", ["/aws/lambda/", !Ref GetUser]]
+      LogGroupName: !Join ["", ["/aws/lambda/user/", !Ref GetUser]]
   Login:
     Type: AWS::Serverless::Function
     Properties:
@@ -132,7 +132,7 @@ Resources:
     DependsOn: "Login"
     Properties: 
       RetentionInDays: 1
-      LogGroupName: !Join ["", ["/aws/lambda/", !Ref Login]]
+      LogGroupName: !Join ["", ["/aws/lambda/user/", !Ref Login]]
   RefreshToken:
     Type: AWS::Serverless::Function
     Properties:
@@ -167,7 +167,7 @@ Resources:
     DependsOn: "RefreshToken"
     Properties: 
       RetentionInDays: 1
-      LogGroupName: !Join ["", ["/aws/lambda/", !Ref RefreshToken]]
+      LogGroupName: !Join ["", ["/aws/lambda/user/", !Ref RefreshToken]]
   Register:
     Type: AWS::Serverless::Function
     Properties:
@@ -204,7 +204,7 @@ Resources:
     DependsOn: "Register"
     Properties: 
       RetentionInDays: 1
-      LogGroupName: !Join ["", ["/aws/lambda/", !Ref Register]]
+      LogGroupName: !Join ["", ["/aws/lambda/user/", !Ref Register]]
   VerifyToken:
     Type: AWS::Serverless::Function
     Properties:
@@ -239,7 +239,7 @@ Resources:
     DependsOn: "VerifyToken"
     Properties: 
       RetentionInDays: 1
-      LogGroupName: !Join ["", ["/aws/lambda/", !Ref VerifyToken]]
+      LogGroupName: !Join ["", ["/aws/lambda/user/", !Ref VerifyToken]]
 
 ## Describes the values that are returned whenever you view your stack's properties.
 Outputs:
