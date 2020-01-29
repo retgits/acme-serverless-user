@@ -215,6 +215,7 @@ Resources:
       Description: A Lambda function to verify a JWT token
       MemorySize: 256
       Timeout: 10
+      Tracing: Active
       Policies:
         - AWSLambdaRole
       Environment:
