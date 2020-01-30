@@ -7,6 +7,7 @@ import (
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
+	user "github.com/retgits/acme-serverless-user"
 	"github.com/retgits/acme-serverless-user/internal/datastore/dynamodb"
 )
 
@@ -31,7 +32,12 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return handleError("getting products", err)
 	}
 
-	statusPayload, err := usr.Marshal()
+	res := user.UserDetailsResponse{
+		User:   usr,
+		Status: http.StatusOK,
+	}
+
+	statusPayload, err := res.Marshal()
 	if err != nil {
 		return handleError("marshalling response", err)
 	}

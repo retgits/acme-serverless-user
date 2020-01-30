@@ -114,3 +114,16 @@ type VerifyTokenResponse struct {
 	Message string `json:"message"`
 	Status  int    `json:"status"`
 }
+
+type UserDetailsResponse struct {
+	User   User `json:"data"`
+	Status int  `json:"status"`
+}
+
+func (r *UserDetailsResponse) Marshal() (string, error) {
+	s, err := json.Marshal(r)
+	if err != nil {
+		return "", err
+	}
+	return string(s), nil
+}

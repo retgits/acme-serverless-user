@@ -40,7 +40,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	status := user.RegisterResponse{
 		Message:    "User created successfully!",
 		ResourceID: usr.ID,
-		Status:     http.StatusOK,
+		Status:     http.StatusCreated,
 	}
 
 	statusPayload, err := status.Marshal()
@@ -48,7 +48,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return handleError("marshalling response", err)
 	}
 
-	response.StatusCode = http.StatusOK
+	response.StatusCode = http.StatusCreated
 	response.Body = statusPayload
 
 	return response, nil
