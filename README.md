@@ -20,6 +20,10 @@ The user service supports the following data stores:
 
 * [Amazon DynamoDB](https://aws.amazon.com/dynamodb/): With [Makefile.dynamodb](./deploy/cloudformation), you can run run `make -f Makefile.dynamodb deploy` to create the DynamoDB table.
 
+### Seeding Amazon DynamoDB
+
+To start your journey off with random data in the Order table, you can use [`seed-dynamodb`](./cmd/seed-dynamodb). Running that program will add the default generated data (in [data.json](./cmd/seed-dynamodb/data.json)) into Amazon DynamoDB. To generate your own data, you can use [Mockaroo](https://www.mockaroo.com/) and import the [schema.json](./cmd/seed-dynamodb/schema.json) to start off.
+
 ## Using Amazon API Gateway
 
 ### Prerequisites for Amazon API Gateway
