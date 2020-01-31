@@ -20,6 +20,11 @@ Parameters:
     Type: String
     Default: dev
 
+Globals:
+  Api:
+    Cors:
+      AllowOrigin: "'*'"
+
 ## Specifies the stack resources and their properties.
 Resources:
   AllUsers:

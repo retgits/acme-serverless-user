@@ -38,8 +38,12 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return handleError("marshalling response", err)
 	}
 
+	headers := request.Headers
+	headers["Access-Control-Allow-Origin"] = "*"
+
 	response.StatusCode = http.StatusOK
 	response.Body = statusPayload
+	response.Headers = headers
 
 	return response, nil
 }
