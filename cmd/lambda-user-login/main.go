@@ -20,33 +20,38 @@ var (
 	RtJwtKey = []byte("my_secret_key_2")
 )
 
-func handleError(area string, err error) (events.APIGatewayProxyResponse, error) {
+func handleError(area string, headers map[string]string, err error) (events.APIGatewayProxyResponse, error) {
 	msg := fmt.Sprintf("error %s: %s", area, err.Error())
 	log.Println(msg)
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusInternalServerError,
 		Body:       msg,
+		Headers:    headers,
 	}, err
 }
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	response := events.APIGatewayProxyResponse{}
+	headers := request.Headers
+	if headers == nil {
+		headers = make(map[string]string)
+	}
+	headers["Access-Control-Allow-Origin"] = "*"
 
 	// Create the key attributes
 	usr, err := user.UnmarshalUser(request.Body)
 	if err != nil {
-		return handleError("unmarshalling user", err)
+		return handleError("unmarshalling user", headers, err)
 	}
 
 	dynamoStore := dynamodb.New()
 	usr, err = dynamoStore.FindUser(usr.Username)
 	if err != nil {
-		return handleError("getting products", err)
+		return handleError("getting products", headers, err)
 	}
 
 	accessToken, refreshToken, err := GenerateTokenPair(usr.Username, usr.ID)
 	if err != nil {
-		return handleError("generating accesstoken", err)
+		return handleError("generating accesstoken", headers, err)
 	}
 
 	res := user.LoginResponse{
@@ -55,17 +60,16 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		Status:       http.StatusOK,
 	}
 
-	statusPayload, err := res.Marshal()
+	payload, err := res.Marshal()
 	if err != nil {
-		return handleError("marshalling response", err)
+		return handleError("marshalling response", headers, err)
 	}
 
-	headers := request.Headers
-	headers["Access-Control-Allow-Origin"] = "*"
-
-	response.StatusCode = http.StatusOK
-	response.Body = statusPayload
-	response.Headers = headers
+	response := events.APIGatewayProxyResponse{
+		StatusCode: http.StatusOK,
+		Body:       payload,
+		Headers:    headers,
+	}
 
 	return response, nil
 }

@@ -11,39 +11,43 @@ import (
 	"github.com/retgits/acme-serverless-user/internal/datastore/dynamodb"
 )
 
-func handleError(area string, err error) (events.APIGatewayProxyResponse, error) {
+func handleError(area string, headers map[string]string, err error) (events.APIGatewayProxyResponse, error) {
 	msg := fmt.Sprintf("error %s: %s", area, err.Error())
 	log.Println(msg)
 	return events.APIGatewayProxyResponse{
 		StatusCode: http.StatusInternalServerError,
 		Body:       msg,
+		Headers:    headers,
 	}, err
 }
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	response := events.APIGatewayProxyResponse{}
+	headers := request.Headers
+	if headers == nil {
+		headers = make(map[string]string)
+	}
+	headers["Access-Control-Allow-Origin"] = "*"
 
 	dynamoStore := dynamodb.New()
 	users, err := dynamoStore.AllUsers()
 	if err != nil {
-		return handleError("getting users", err)
+		return handleError("getting users", headers, err)
 	}
 
 	res := user.AllUsers{
 		Data: users,
 	}
 
-	statusPayload, err := res.Marshal()
+	payload, err := res.Marshal()
 	if err != nil {
-		return handleError("marshalling response", err)
+		return handleError("marshalling response", headers, err)
 	}
 
-	headers := request.Headers
-	headers["Access-Control-Allow-Origin"] = "*"
-
-	response.StatusCode = http.StatusOK
-	response.Body = statusPayload
-	response.Headers = headers
+	response := events.APIGatewayProxyResponse{
+		StatusCode: http.StatusOK,
+		Body:       payload,
+		Headers:    headers,
+	}
 
 	return response, nil
 }
