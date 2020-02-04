@@ -33,7 +33,7 @@ Resources:
       Handler: lambda-user-all
       Runtime: go1.x
       CodeUri: bin/
-      FunctionName: AllUsers
+      FunctionName: !Sub "AllUsers-${Stage}"
       Description: A Lambda function to get all users from DynamoDB
       MemorySize: 256
       Timeout: 10
@@ -70,7 +70,7 @@ Resources:
       Handler: lambda-user-get
       Runtime: go1.x
       CodeUri: bin/
-      FunctionName: GetUser
+      FunctionName: !Sub "GetUser-${Stage}"
       Description: A Lambda function to get a user from DynamoDB
       MemorySize: 256
       Timeout: 10
@@ -107,7 +107,7 @@ Resources:
       Handler: lambda-user-login
       Runtime: go1.x
       CodeUri: bin/
-      FunctionName: Login
+      FunctionName: !Sub "Login-${Stage}"
       Description: A Lambda function to login
       MemorySize: 256
       Timeout: 10
@@ -144,7 +144,7 @@ Resources:
       Handler: lambda-user-refreshtoken
       Runtime: go1.x
       CodeUri: bin/
-      FunctionName: RefreshToken
+      FunctionName: !Sub "RefreshToken-${Stage}"
       Description: A Lambda function to refresh a JWT token
       MemorySize: 256
       Timeout: 10
@@ -179,7 +179,7 @@ Resources:
       Handler: lambda-user-register
       Runtime: go1.x
       CodeUri: bin/
-      FunctionName: Register
+      FunctionName: !Sub "Register-${Stage}"
       Description: A Lambda function to register new users in DynamoDB
       MemorySize: 256
       Timeout: 10
@@ -216,7 +216,7 @@ Resources:
       Handler: lambda-user-verifytoken
       Runtime: go1.x
       CodeUri: bin/
-      FunctionName: VerifyToken
+      FunctionName: !Sub "VerifyToken-${Stage}"
       Description: A Lambda function to verify a JWT token
       MemorySize: 256
       Timeout: 10

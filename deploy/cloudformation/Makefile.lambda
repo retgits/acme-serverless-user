@@ -69,7 +69,7 @@ deploy: ## Deploy the app to AWS Lambda
 		--parameter-overrides Version=$(version) \
 		Author=$(author) \
 		Team=$(team) \
-		Version=$(version)
+		Stage=$(stage)
 	aws cloudformation describe-stacks --stack-name $(project_name)-$(stage) --query 'Stacks[].Outputs'
 	echo
 

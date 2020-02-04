@@ -53,7 +53,7 @@ deploy: ## Deploy the table to Amazon DynamoDB
 		--parameter-overrides Version=$(version) \
 		Author=$(author) \
 		Team=$(team) \
-		Version=$(version)
+		Stage=$(stage)
 	aws cloudformation describe-stacks --stack-name $(project_name)-$(stage) --query 'Stacks[].Outputs'
 	echo
 
