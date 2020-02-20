@@ -53,7 +53,7 @@ func (m manager) GetUser(userID string) (user.User, error) {
 	// Create the QueryInput
 	qi := &dynamodb.QueryInput{
 		TableName:                 aws.String(os.Getenv("TABLE")),
-		KeyConditionExpression:    aws.String("PK = :type AND SK = :id)"),
+		KeyConditionExpression:    aws.String("PK = :type AND SK = :id"),
 		ExpressionAttributeValues: km,
 	}
 
