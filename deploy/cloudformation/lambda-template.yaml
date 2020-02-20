@@ -24,9 +24,10 @@ Parameters:
 Globals:
   Function:
     Environment:
-      TABLE: !Sub "${Feature}-${Stage}"
-      REGION: !Ref AWS::Region
-      # DYNAMO_URL: http://host.docker.internal:8000 ## Uncomment this property to be able to test locally using DynamoDB local 
+      Variables:
+        TABLE: !Sub "${Feature}-${Stage}"
+        REGION: !Ref AWS::Region
+        # DYNAMO_URL: http://host.docker.internal:8000 ## Uncomment this property to be able to test locally using DynamoDB local 
   Api:
     Cors:
       AllowOrigin: "'*'"
