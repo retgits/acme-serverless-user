@@ -145,7 +145,7 @@ func (m manager) AllUsers() ([]user.User, error) {
 	return users, nil
 }
 
-// AddUser stores a nuew user in Amazon DynamoDB
+// AddUser stores a new user in Amazon DynamoDB
 func (m manager) AddUser(usr user.User) error {
 	// Create a JSON encoded string of the user
 	payload, err := usr.Marshal()
