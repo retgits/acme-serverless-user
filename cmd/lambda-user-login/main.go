@@ -35,6 +35,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	if headers == nil {
 		headers = make(map[string]string)
 	}
+	delete(headers, "Content-Length")
 	headers["Access-Control-Allow-Origin"] = "*"
 
 	// Create the key attributes
@@ -46,7 +47,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	dynamoStore := dynamodb.New()
 	usr, err = dynamoStore.FindUser(usr.Username)
 	if err != nil {
-		return handleError("getting products", headers, err)
+		return handleError("getting users", headers, err)
 	}
 
 	accessToken, refreshToken, err := GenerateTokenPair(usr.Username, usr.ID)

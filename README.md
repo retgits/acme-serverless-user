@@ -18,11 +18,7 @@ The Lambda functions of the user service are triggered by [Amazon API Gateway](h
 
 The user service supports the following data stores:
 
-* [Amazon DynamoDB](https://aws.amazon.com/dynamodb/): With [Makefile.dynamodb](./deploy/cloudformation), you can run run `make -f Makefile.dynamodb deploy` to create the DynamoDB table.
-
-### Seeding Amazon DynamoDB
-
-To start your journey off with random data in the Order table, you can use [`seed-dynamodb`](./cmd/seed-dynamodb). Running that program will add the default generated data (in [data.json](./cmd/seed-dynamodb/data.json)) into Amazon DynamoDB. To generate your own data, you can use [Mockaroo](https://www.mockaroo.com/) and import the [schema.json](./cmd/seed-dynamodb/schema.json) to start off.
+* [Amazon DynamoDB](https://aws.amazon.com/dynamodb/): The scripts to both create and seed the DynamoDB can be found in the [acme-serverless](https://github.com/retgits/acme-serverless) repo.
 
 ## Using Amazon API Gateway
 
