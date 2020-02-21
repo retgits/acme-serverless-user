@@ -12,108 +12,132 @@ import (
 	"github.com/retgits/acme-serverless-user/internal/datastore"
 )
 
+// Create a single instance of the dynamoDB service
+// which can be reused if the container stays warm
+var dbs *dynamodb.DynamoDB
+
 type manager struct{}
 
+// init creates the connection to dynamoDB. If the environment variable
+// DYNAMO_URL is set, the connection is made to that URL instead of
+// relying on the AWS SDK to provide the URL
+func init() {
+	awsSession := session.Must(session.NewSession(&aws.Config{
+		Region: aws.String(os.Getenv("REGION")),
+	}))
+
+	if len(os.Getenv("DYNAMO_URL")) > 0 {
+		awsSession.Config.Endpoint = aws.String(os.Getenv("DYNAMO_URL"))
+	}
+
+	dbs = dynamodb.New(awsSession)
+}
+
+// New creates a new datastore manager using Amazon DynamoDB as backend
 func New() datastore.Manager {
 	return manager{}
 }
 
+// GetUser retrieves a single user from DynamoDB based on the userID
 func (m manager) GetUser(userID string) (user.User, error) {
-	awsSession := session.Must(session.NewSession(&aws.Config{
-		Region: aws.String(os.Getenv("REGION")),
-	}))
-
-	dbs := dynamodb.New(awsSession)
-
 	// Create a map of DynamoDB Attribute Values containing the table keys
+	// for the access pattern PK = USER SK = ID
 	km := make(map[string]*dynamodb.AttributeValue)
-	km[":userid"] = &dynamodb.AttributeValue{
+	km[":type"] = &dynamodb.AttributeValue{
+		S: aws.String("USER"),
+	}
+	km[":id"] = &dynamodb.AttributeValue{
 		S: aws.String(userID),
 	}
 
-	si := &dynamodb.ScanInput{
+	// Create the QueryInput
+	qi := &dynamodb.QueryInput{
 		TableName:                 aws.String(os.Getenv("TABLE")),
+		KeyConditionExpression:    aws.String("PK = :type AND SK = :id"),
 		ExpressionAttributeValues: km,
-		FilterExpression:          aws.String("ID = :userid"),
 	}
 
-	so, err := dbs.Scan(si)
+	// Execute the DynamoDB query
+	qo, err := dbs.Query(qi)
 	if err != nil {
 		return user.User{}, err
 	}
 
-	if len(so.Items) == 0 {
+	// Return an error if no user was found
+	if len(qo.Items) == 0 {
 		return user.User{}, fmt.Errorf("no user found with id %s", userID)
 	}
 
-	str := *so.Items[0]["UserContent"].S
-	usr, err := user.UnmarshalUser(str)
-	if err != nil {
-		return user.User{}, err
-	}
-	return usr, nil
+	// Create a user struct from the data
+	str := *qo.Items[0]["Payload"].S
+	return user.UnmarshalUser(str)
 }
 
+// FindUser retrieves a single user from DynamoDB based on the username
 func (m manager) FindUser(username string) (user.User, error) {
-	awsSession := session.Must(session.NewSession(&aws.Config{
-		Region: aws.String(os.Getenv("REGION")),
-	}))
-
-	dbs := dynamodb.New(awsSession)
-
 	// Create a map of DynamoDB Attribute Values containing the table keys
+	// for the access pattern PK = USER KeyID = ID
 	km := make(map[string]*dynamodb.AttributeValue)
+	km[":type"] = &dynamodb.AttributeValue{
+		S: aws.String("USER"),
+	}
 	km[":username"] = &dynamodb.AttributeValue{
 		S: aws.String(username),
 	}
 
-	si := &dynamodb.ScanInput{
+	// Create the QueryInput
+	qi := &dynamodb.QueryInput{
 		TableName:                 aws.String(os.Getenv("TABLE")),
+		KeyConditionExpression:    aws.String("PK = :type"),
+		FilterExpression:          aws.String("KeyID = :username"),
 		ExpressionAttributeValues: km,
-		FilterExpression:          aws.String("UserName = :username"),
 	}
 
-	so, err := dbs.Scan(si)
+	// Execute the DynamoDB query
+	qo, err := dbs.Query(qi)
 	if err != nil {
 		return user.User{}, err
 	}
 
-	if len(so.Items) == 0 {
-		return user.User{}, fmt.Errorf("no user found with id %s", username)
+	// Return an error if no user was found
+	if len(qo.Items) == 0 {
+		return user.User{}, fmt.Errorf("no user found with name %s", username)
 	}
 
-	str := *so.Items[0]["UserContent"].S
-	usr, err := user.UnmarshalUser(str)
-	if err != nil {
-		return user.User{}, err
-	}
-	return usr, nil
+	// Create a user struct from the data
+	str := *qo.Items[0]["Payload"].S
+	return user.UnmarshalUser(str)
 }
 
+// AllUsers retrieves all users from DynamoDB
 func (m manager) AllUsers() ([]user.User, error) {
-	awsSession := session.Must(session.NewSession(&aws.Config{
-		Region: aws.String(os.Getenv("REGION")),
-	}))
-
-	dbs := dynamodb.New(awsSession)
-
-	si := &dynamodb.ScanInput{
-		TableName: aws.String(os.Getenv("TABLE")),
+	// Create a map of DynamoDB Attribute Values containing the table keys
+	// for the access pattern PK = USER
+	km := make(map[string]*dynamodb.AttributeValue)
+	km[":type"] = &dynamodb.AttributeValue{
+		S: aws.String("USER"),
 	}
 
-	so, err := dbs.Scan(si)
+	// Create the QueryInput
+	qi := &dynamodb.QueryInput{
+		TableName:                 aws.String(os.Getenv("TABLE")),
+		KeyConditionExpression:    aws.String("PK = :type"),
+		ExpressionAttributeValues: km,
+	}
+
+	qo, err := dbs.Query(qi)
 	if err != nil {
 		return nil, err
 	}
 
-	users := make([]user.User, len(so.Items))
+	users := make([]user.User, len(qo.Items))
 
-	for idx, ct := range so.Items {
-		str := *ct["UserContent"].S
+	for idx, ct := range qo.Items {
+		str := *ct["Payload"].S
 		usr, err := user.UnmarshalUser(str)
 		if err != nil {
 			log.Println(fmt.Sprintf("error unmarshalling user data: %s", err.Error()))
-			break
+			continue
 		}
 		users[idx] = usr
 	}
@@ -121,14 +145,9 @@ func (m manager) AllUsers() ([]user.User, error) {
 	return users, nil
 }
 
+// AddUser stores a new user in Amazon DynamoDB
 func (m manager) AddUser(usr user.User) error {
-	awsSession := session.Must(session.NewSession(&aws.Config{
-		Region: aws.String(os.Getenv("REGION")),
-	}))
-
-	dbs := dynamodb.New(awsSession)
-
-	// Marshal the newly updated user struct
+	// Create a JSON encoded string of the user
 	payload, err := usr.Marshal()
 	if err != nil {
 		return err
@@ -136,23 +155,27 @@ func (m manager) AddUser(usr user.User) error {
 
 	// Create a map of DynamoDB Attribute Values containing the table keys
 	km := make(map[string]*dynamodb.AttributeValue)
-	km["ID"] = &dynamodb.AttributeValue{
+	km["PK"] = &dynamodb.AttributeValue{
+		S: aws.String("USER"),
+	}
+	km["SK"] = &dynamodb.AttributeValue{
 		S: aws.String(usr.ID),
 	}
 
+	// Create a map of DynamoDB Attribute Values containing the table data elements
 	em := make(map[string]*dynamodb.AttributeValue)
-	em[":content"] = &dynamodb.AttributeValue{
-		S: aws.String(payload),
-	}
-	em[":username"] = &dynamodb.AttributeValue{
+	em[":keyid"] = &dynamodb.AttributeValue{
 		S: aws.String(usr.Username),
+	}
+	em[":payload"] = &dynamodb.AttributeValue{
+		S: aws.String(payload),
 	}
 
 	uii := &dynamodb.UpdateItemInput{
 		TableName:                 aws.String(os.Getenv("TABLE")),
 		Key:                       km,
 		ExpressionAttributeValues: em,
-		UpdateExpression:          aws.String("SET UserContent = :content, UserName = :username"),
+		UpdateExpression:          aws.String("SET Payload = :payload, KeyID = :keyid"),
 	}
 
 	_, err = dbs.UpdateItem(uii)

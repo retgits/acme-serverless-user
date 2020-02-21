@@ -20,7 +20,14 @@ Parameters:
     Type: String
     Default: dev
 
+## Specifies properties that are common to all your serverless functions, APIs, and simple tables.
 Globals:
+  Function:
+    Environment:
+      Variables:
+        TABLE: !Sub "${Feature}-${Stage}"
+        REGION: !Ref AWS::Region
+        # DYNAMO_URL: http://host.docker.internal:8000 ## Uncomment this property to be able to test locally using DynamoDB local 
   Api:
     Cors:
       AllowOrigin: "'*'"
@@ -41,10 +48,7 @@ Resources:
       Policies:
         - AWSLambdaRole
         - DynamoDBCrudPolicy:
-            TableName: "User"
-      Environment:
-        Variables:
-          TABLE: "User"
+            TableName: !Sub "${Feature}-${Stage}"
       Events:
         AllUsersAPI:
           Type: Api
@@ -78,10 +82,7 @@ Resources:
       Policies:
         - AWSLambdaRole
         - DynamoDBCrudPolicy:
-            TableName: "User"
-      Environment:
-        Variables:
-          TABLE: "User"
+            TableName: !Sub "${Feature}-${Stage}"
       Events:
         GetUserAPI:
           Type: Api
@@ -115,10 +116,7 @@ Resources:
       Policies:
         - AWSLambdaRole
         - DynamoDBCrudPolicy:
-            TableName: "User"
-      Environment:
-        Variables:
-          TABLE: "User"
+            TableName: !Sub "${Feature}-${Stage}"
       Events:
         LoginAPI:
           Type: Api
@@ -151,9 +149,6 @@ Resources:
       Tracing: Active
       Policies:
         - AWSLambdaRole
-      Environment:
-        Variables:
-          TABLE: "User"
       Events:
         RefreshTokenAPI:
           Type: Api
@@ -187,10 +182,7 @@ Resources:
       Policies:
         - AWSLambdaRole
         - DynamoDBCrudPolicy:
-            TableName: "User"
-      Environment:
-        Variables:
-          TABLE: "User"
+            TableName: !Sub "${Feature}-${Stage}"
       Events:
         RegisterAPI:
           Type: Api
@@ -223,9 +215,6 @@ Resources:
       Tracing: Active
       Policies:
         - AWSLambdaRole
-      Environment:
-        Variables:
-          TABLE: "User"
       Events:
         VerifyTokenAPI:
           Type: Api

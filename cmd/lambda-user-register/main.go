@@ -27,6 +27,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	if headers == nil {
 		headers = make(map[string]string)
 	}
+	delete(headers, "Content-Length")
 	headers["Access-Control-Allow-Origin"] = "*"
 
 	// Update the user with an ID
