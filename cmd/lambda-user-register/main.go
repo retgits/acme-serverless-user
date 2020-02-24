@@ -4,15 +4,19 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/getsentry/sentry-go"
 	"github.com/gofrs/uuid"
 	user "github.com/retgits/acme-serverless-user"
 	"github.com/retgits/acme-serverless-user/internal/datastore/dynamodb"
 )
 
 func handleError(area string, headers map[string]string, err error) (events.APIGatewayProxyResponse, error) {
+	sentry.CaptureException(fmt.Errorf("error %s: %s", area, err.Error()))
 	msg := fmt.Sprintf("error %s: %s", area, err.Error())
 	log.Println(msg)
 	return events.APIGatewayProxyResponse{
@@ -23,6 +27,17 @@ func handleError(area string, headers map[string]string, err error) (events.APIG
 }
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	sentrySyncTransport := sentry.NewHTTPSyncTransport()
+	sentrySyncTransport.Timeout = time.Second * 3
+
+	sentry.Init(sentry.ClientOptions{
+		Dsn:         os.Getenv("SENTRY_DSN"),
+		Transport:   sentrySyncTransport,
+		ServerName:  os.Getenv("FUNCTION_NAME"),
+		Release:     os.Getenv("VERSION"),
+		Environment: os.Getenv("STAGE"),
+	})
+
 	headers := request.Headers
 	if headers == nil {
 		headers = make(map[string]string)

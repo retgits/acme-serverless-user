@@ -19,6 +19,9 @@ Parameters:
   Stage:
     Type: String
     Default: dev
+  SentryDSN:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /Sentry/Dsn
 
 ## Specifies properties that are common to all your serverless functions, APIs, and simple tables.
 Globals:
@@ -28,6 +31,9 @@ Globals:
         TABLE: !Sub "${Feature}-${Stage}"
         REGION: !Ref AWS::Region
         # DYNAMO_URL: http://host.docker.internal:8000 ## Uncomment this property to be able to test locally using DynamoDB local 
+        VERSION: !Ref Version
+        STAGE: !Ref Stage
+        SENTRY_DSN: !Ref SentryDSN
   Api:
     Cors:
       AllowOrigin: "'*'"
@@ -49,6 +55,9 @@ Resources:
         - AWSLambdaRole
         - DynamoDBCrudPolicy:
             TableName: !Sub "${Feature}-${Stage}"
+      Environment:
+        Variables:
+          FUNCTION_NAME: AllUsers
       Events:
         AllUsersAPI:
           Type: Api
@@ -83,6 +92,9 @@ Resources:
         - AWSLambdaRole
         - DynamoDBCrudPolicy:
             TableName: !Sub "${Feature}-${Stage}"
+      Environment:
+        Variables:
+          FUNCTION_NAME: GetUsers
       Events:
         GetUserAPI:
           Type: Api
@@ -117,6 +129,9 @@ Resources:
         - AWSLambdaRole
         - DynamoDBCrudPolicy:
             TableName: !Sub "${Feature}-${Stage}"
+      Environment:
+        Variables:
+          FUNCTION_NAME: Login
       Events:
         LoginAPI:
           Type: Api
@@ -149,6 +164,9 @@ Resources:
       Tracing: Active
       Policies:
         - AWSLambdaRole
+      Environment:
+        Variables:
+          FUNCTION_NAME: RefreshToken
       Events:
         RefreshTokenAPI:
           Type: Api
@@ -183,6 +201,9 @@ Resources:
         - AWSLambdaRole
         - DynamoDBCrudPolicy:
             TableName: !Sub "${Feature}-${Stage}"
+      Environment:
+        Variables:
+          FUNCTION_NAME: Register
       Events:
         RegisterAPI:
           Type: Api
@@ -215,6 +236,9 @@ Resources:
       Tracing: Active
       Policies:
         - AWSLambdaRole
+      Environment:
+        Variables:
+          FUNCTION_NAME: VerifyToken
       Events:
         VerifyTokenAPI:
           Type: Api
