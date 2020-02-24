@@ -23,7 +23,7 @@ func handleError(area string, headers map[string]string, err error) (events.APIG
 		StatusCode: http.StatusInternalServerError,
 		Body:       msg,
 		Headers:    headers,
-	}, err
+	}, nil
 }
 
 func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
