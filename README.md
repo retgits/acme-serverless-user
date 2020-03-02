@@ -258,45 +258,13 @@ When the user is successfully created, an HTTP/201 message is returned
 
 ## Using Make
 
-The Makefiles in the [Cloudformation](./deploy/cloudformation) directory have a few a bunch of options available:
-
-| Target  | Description                                                |
-|---------|------------------------------------------------------------|
-| build   | Build the executable for Lambda                            |
-| clean   | Remove all generated files                                 |
-| deploy  | Deploy the app to AWS                                      |
-| destroy | Deletes the CloudFormation stack and all created resources |
-| help    | Displays the help for each target (this message)           |
-| vuln    | Scans the Go.mod file for known vulnerabilities using Snyk |
+The Makefiles and CloudFormation templates can be found in the [acme-serverless](https://github.com/retgits/acme-serverless/tree/master/deploy/cloudformation/user) repository
 
 ## Using Mage
 
 If you want to "go all Go" (_pun intended_) and write plain-old go functions to build and deploy, you can use [Mage](https://magefile.org/). Mage is a make/rake-like build tool using Go so Mage automatically uses the functions you create as Makefile-like runnable targets.
 
-### Prerequisites for Mage
-
-To use Mage, you'll need to install it first:
-
-```bash
-go get -u -d github.com/magefile/mage
-cd $GOPATH/src/github.com/magefile/mage
-go run bootstrap.go
-```
-
-Instructions curtesy of Mage
-
-### Targets
-
-The Magefile in this repository has a bunch of targets available:
-
-| Target | Description                                                                                              |
-|--------|----------------------------------------------------------------------------------------------------------|
-| build  | compiles the individual commands in the cmd folder, along with their dependencies.                       |
-| clean  | removes object files from package source directories.                                                    |
-| deploy | packages, deploys, and returns all outputs of your stack.                                                |
-| deps   | resolves and downloads dependencies to the current development module and then builds and installs them. |
-| test   | 'Go test' automates testing the packages named by the import paths.                                      |
-| vuln   | uses Snyk to test for any known vulnerabilities in go.mod.                                               |
+The Magefile can be found in the [acme-serverless](https://github.com/retgits/acme-serverless/tree/master/deploy/mage) repository
 
 ## Contributing
 
