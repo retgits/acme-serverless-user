@@ -6,58 +6,46 @@ The User service is part of the [ACME Fitness Serverless Shop](https://github.co
 
 ## Prerequisites
 
-* [Go (at least Go 1.12)](https://golang.org/dl/);
-* [An AWS Account](https://portal.aws.amazon.com/billing/signup);
-* The _vuln_ targets for Make and Mage rely on the [Snyk](http://snyk.io/) CLI.
-* This service uses [Sentry.io](https://sentry.io) for tracing and error reporting
+* [Go (at least Go 1.12)](https://golang.org/dl/)
+* [An AWS account](https://portal.aws.amazon.com/billing/signup)
+* [A Pulumi account](https://app.pulumi.com/signup)
+* [A Sentry.io account](https://sentry.io) if you want to enable tracing and error reporting
 
-## Eventing Options
+## Deploying
 
-The Lambda functions of the user service are triggered by [Amazon API Gateway](https://aws.amazon.com/api-gateway/).
-
-## Data Stores
-
-The user service supports the following data stores:
-
-* [Amazon DynamoDB](https://aws.amazon.com/dynamodb/): The scripts to both create and seed the DynamoDB can be found in the [acme-serverless](https://github.com/retgits/acme-serverless) repo.
-
-## Using Amazon API Gateway
-
-### Prerequisites for Amazon API Gateway
-
-* [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html) installed and configured
-
-### Build and deploy for Amazon API Gateway
-
-Clone this repository
+To deploy the User Service you'll need a [Pulumi account](https://app.pulumi.com/signup). Once you have your Pulumi account and configured the [Pulumi CLI](https://www.pulumi.com/docs/get-started/aws/install-pulumi/), you can initialize a new stack using the Pulumi templates in the [pulumi](./pulumi) folder.
 
 ```bash
-git clone https://github.com/retgits/acme-serverless-user
-cd acme-serverless-user
+cd pulumi
+pulumi stack init <your pulumi org>/acmeserverless-user/dev
 ```
 
-Get the Go Module dependencies
+You'll need to create a [Pulumi.dev.yaml](./pulumi/Pulumi.dev.yaml) file that will contain all configuration data to deploy the app:
+
+```yaml
+config:
+  aws:region: us-west-2 ## The region you want to deploy to
+  awsconfig:lambda:
+    dynamoarn: ## The ARN to the DynamoDB table
+    sentrydsn: ## The DSN to connect to Sentry
+    region: ## The region you want to deploy to
+    accountid: ## Your AWS sccount ID
+  awsconfig:tags:
+    author: retgits ## The author, you...
+    feature: acmeserverless
+    team: vcs ## The team you're on
+    version: 0.1.0 ## The version
+```
+
+To create the Pulumi stack, and create the User service, run `pulumi up`.
+
+If you want to keep track of the resources in Pulumi, you can add tags to your stack as well.
 
 ```bash
-go get ./...
+pulumi stack tag set app:name acmeserverless
+pulumi stack tag set app:feature acmeserverless-user
+pulumi stack tag set app:domain user
 ```
-
-Change directories to the [deploy/cloudformation](./deploy/cloudformation) folder
-
-```bash
-cd ./deploy/cloudformation
-```
-
-Use make to deploy
-
-```bash
-make build
-make deploy
-```
-
-### Testing Amazon API Gateway
-
-After the deployment you'll see the URL to which you can send the below mentioned API requests
 
 ## API
 
@@ -255,16 +243,6 @@ When the user is successfully created, an HTTP/201 message is returned
     "status": 201
 }
 ```
-
-## Using Make
-
-The Makefiles and CloudFormation templates can be found in the [acme-serverless](https://github.com/retgits/acme-serverless/tree/master/deploy/cloudformation/user) repository
-
-## Using Mage
-
-If you want to "go all Go" (_pun intended_) and write plain-old go functions to build and deploy, you can use [Mage](https://magefile.org/). Mage is a make/rake-like build tool using Go so Mage automatically uses the functions you create as Makefile-like runnable targets.
-
-The Magefile can be found in the [acme-serverless](https://github.com/retgits/acme-serverless/tree/master/deploy/mage) repository
 
 ## Contributing
 

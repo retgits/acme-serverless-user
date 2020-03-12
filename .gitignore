@@ -46,3 +46,10 @@ bin/
 
 # AWS Lambda
 *packaged.yaml
+
+# Pulumi files
+Pulumi.*.yaml
+
+# Builds and executables
+*.zip,
+cmd/*/lambda-user-*

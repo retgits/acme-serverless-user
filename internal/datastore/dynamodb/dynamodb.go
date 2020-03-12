@@ -1,3 +1,5 @@
+// Package dynamodb leverages Amazon DynamoDB, a key-value and document database that delivers single-digit millisecond
+// performance at any scale to store data.
 package dynamodb
 
 import (
@@ -168,7 +170,7 @@ func (m manager) AddUser(usr user.User) error {
 		S: aws.String(usr.Username),
 	}
 	em[":payload"] = &dynamodb.AttributeValue{
-		S: aws.String(payload),
+		S: aws.String(string(payload)),
 	}
 
 	uii := &dynamodb.UpdateItemInput{
