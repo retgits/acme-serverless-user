@@ -205,11 +205,11 @@ func main() {
 			roles[function] = role
 		}
 
-		// All functions will have the same environment variables
+		// All functions will have the same environment variables, with the exception
+		// of the function name
 		variables := make(map[string]pulumi.StringInput)
 		variables["REGION"] = pulumi.String(lambdaConfig.Region)
 		variables["SENTRY_DSN"] = pulumi.String(lambdaConfig.SentryDSN)
-		variables["FUNCTION_NAME"] = pulumi.String(fmt.Sprintf("%s-lambda-payment", ctx.Stack()))
 		variables["VERSION"] = tags.Version
 		variables["STAGE"] = pulumi.String(ctx.Stack())
 		parts := strings.Split(lambdaConfig.DynamoARN, "/")
@@ -232,6 +232,7 @@ func main() {
 			Role:        roles["lambda-user-all"].Arn,
 			Tags:        pulumi.Map(tagMap),
 		}
+		variables["FUNCTION_NAME"] = pulumi.String(fmt.Sprintf("%s-lambda-user-all", ctx.Stack()))
 
 		function, err := lambda.NewFunction(ctx, fmt.Sprintf("%s-lambda-user-all", ctx.Stack()), functionArgs)
 		if err != nil {
@@ -285,6 +286,7 @@ func main() {
 			Role:        roles["lambda-user-get"].Arn,
 			Tags:        pulumi.Map(tagMap),
 		}
+		variables["FUNCTION_NAME"] = pulumi.String(fmt.Sprintf("%s-lambda-user-get", ctx.Stack()))
 
 		function, err = lambda.NewFunction(ctx, fmt.Sprintf("%s-lambda-user-get", ctx.Stack()), functionArgs)
 		if err != nil {
@@ -347,6 +349,7 @@ func main() {
 			Role:        roles["lambda-user-login"].Arn,
 			Tags:        pulumi.Map(tagMap),
 		}
+		variables["FUNCTION_NAME"] = pulumi.String(fmt.Sprintf("%s-lambda-user-login", ctx.Stack()))
 
 		function, err = lambda.NewFunction(ctx, fmt.Sprintf("%s-lambda-user-login", ctx.Stack()), functionArgs)
 		if err != nil {
@@ -409,6 +412,7 @@ func main() {
 			Role:        roles["lambda-user-refreshtoken"].Arn,
 			Tags:        pulumi.Map(tagMap),
 		}
+		variables["FUNCTION_NAME"] = pulumi.String(fmt.Sprintf("%s-lambda-user-refreshtoken", ctx.Stack()))
 
 		function, err = lambda.NewFunction(ctx, fmt.Sprintf("%s-lambda-user-refreshtoken", ctx.Stack()), functionArgs)
 		if err != nil {
@@ -471,6 +475,7 @@ func main() {
 			Role:        roles["lambda-user-register"].Arn,
 			Tags:        pulumi.Map(tagMap),
 		}
+		variables["FUNCTION_NAME"] = pulumi.String(fmt.Sprintf("%s-lambda-user-register", ctx.Stack()))
 
 		function, err = lambda.NewFunction(ctx, fmt.Sprintf("%s-lambda-user-register", ctx.Stack()), functionArgs)
 		if err != nil {
@@ -533,6 +538,7 @@ func main() {
 			Role:        roles["lambda-user-verifytoken"].Arn,
 			Tags:        pulumi.Map(tagMap),
 		}
+		variables["FUNCTION_NAME"] = pulumi.String(fmt.Sprintf("%s-lambda-user-verifytoken", ctx.Stack()))
 
 		function, err = lambda.NewFunction(ctx, fmt.Sprintf("%s-lambda-user-verifytoken", ctx.Stack()), functionArgs)
 		if err != nil {
