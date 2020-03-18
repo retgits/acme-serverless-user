@@ -3,23 +3,16 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path"
-	"strings"
 
 	"github.com/pulumi/pulumi-aws/sdk/go/aws/apigateway"
+	"github.com/pulumi/pulumi-aws/sdk/go/aws/dynamodb"
 	"github.com/pulumi/pulumi-aws/sdk/go/aws/iam"
 	"github.com/pulumi/pulumi-aws/sdk/go/aws/lambda"
 	"github.com/pulumi/pulumi/sdk/go/pulumi"
 	"github.com/pulumi/pulumi/sdk/go/pulumi/config"
-)
-
-const (
-	// The shell to use
-	shell = "sh"
-
-	// The flag for the shell to read commands from a string
-	shellFlag = "-c"
+	"github.com/retgits/pulumi-helpers/builder"
+	"github.com/retgits/pulumi-helpers/sampolicies"
 )
 
 // Tags are key-value pairs to apply to the resources created by this stack
@@ -37,23 +30,26 @@ type Tags struct {
 	Version pulumi.String
 }
 
-// LambdaConfig contains the key-value pairs for the configuration of AWS Lambda in this stack
-type LambdaConfig struct {
+// GenericConfig contains the key-value pairs for the configuration of AWS in this stack
+type GenericConfig struct {
+	// The AWS region used
+	Region string
+
 	// The DSN used to connect to Sentry
 	SentryDSN string `json:"sentrydsn"`
 
-	// The ARN for the DynamoDB table
-	DynamoARN string `json:"dynamoarn"`
-
-	// The AWS region used
-	Region string `json:"region"`
-
-	// The AWS AccountID used
+	// The AWS AccountID to use
 	AccountID string `json:"accountid"`
 }
 
 func main() {
 	pulumi.Run(func(ctx *pulumi.Context) error {
+		// Get the region
+		region, found := ctx.GetConfig("aws:region")
+		if !found {
+			return fmt.Errorf("region not found")
+		}
+
 		// Read the configuration data from Pulumi.<stack>.yaml
 		conf := config.New(ctx, "awsconfig")
 
@@ -61,9 +57,10 @@ func main() {
 		var tags Tags
 		conf.RequireObject("tags", &tags)
 
-		// Create a new DynamoConfig object with the data from the configuration
-		var lambdaConfig LambdaConfig
-		conf.RequireObject("lambda", &lambdaConfig)
+		// Create a new GenericConfig object with the data from the configuration
+		var genericConfig GenericConfig
+		conf.RequireObject("generic", &genericConfig)
+		genericConfig.Region = region
 
 		// Create a map[string]pulumi.Input of the tags
 		// the first four tags come from the configuration file
@@ -95,18 +92,20 @@ func main() {
 		for _, fnName := range functions {
 			// Find the working folder
 			fnFolder := path.Join(wd, "..", "cmd", fnName)
+			buildFactory := builder.NewFactory().WithFolder(fnFolder)
+			buildFactory.MustBuild()
+			buildFactory.MustZip()
+		}
 
-			// Run go build
-			if err := run(fnFolder, "GOOS=linux GOARCH=amd64 go build"); err != nil {
-				fmt.Printf("Error building code: %s", err.Error())
-				os.Exit(1)
-			}
+		// Create a factory to get policies from
+		iamFactory := sampolicies.NewFactory().WithAccountID(genericConfig.AccountID).WithPartition("aws").WithRegion(genericConfig.Region)
 
-			// Zip up the binary
-			if err := run(fnFolder, fmt.Sprintf("zip ./%s.zip ./%s", fnName, fnName)); err != nil {
-				fmt.Printf("Error creating zipfile: %s", err.Error())
-				os.Exit(1)
-			}
+		// Create the API Gateway Policy
+		iamFactory.AddAssumeRoleLambda()
+		iamFactory.AddExecuteAPI()
+		policies, err := iamFactory.GetPolicyStatement()
+		if err != nil {
+			return err
 		}
 
 		// Create an API Gateway
@@ -114,7 +113,7 @@ func main() {
 			Name:        pulumi.String("UserService"),
 			Description: pulumi.String("ACME Serverless Fitness Shop - User"),
 			Tags:        pulumi.Map(tagMap),
-			Policy:      pulumi.String(`{ "Version": "2012-10-17", "Statement": [ { "Action": "sts:AssumeRole", "Principal": { "Service": "lambda.amazonaws.com" }, "Effect": "Allow", "Sid": "" },{ "Action": "execute-api:Invoke", "Resource":"execute-api:/*", "Principal": "*", "Effect": "Allow", "Sid": "" } ] }`),
+			Policy:      pulumi.String(policies),
 		})
 		if err != nil {
 			return err
@@ -130,29 +129,19 @@ func main() {
 			return err
 		}
 
-		// dynamoCRUDPolicyString is a policy template, derived from AWS SAM, to allow apps
+		// Lookup the DynamoDB table
+		dynamoTable, err := dynamodb.LookupTable(ctx, &dynamodb.LookupTableArgs{
+			Name: fmt.Sprintf("%s-acmeserverless-dynamodb", ctx.Stack()),
+		})
+
+		// dynamoPolicy is a policy template, derived from AWS SAM, to allow apps
 		// to connect to and execute command on Amazon DynamoDB
-		dynamoCRUDPolicyString := fmt.Sprintf(`{
-			"Version": "2012-10-17",
-			"Statement": [
-				{
-					"Action": [
-						"dynamodb:GetItem",
-						"dynamodb:DeleteItem",
-						"dynamodb:PutItem",
-						"dynamodb:Scan",
-						"dynamodb:Query",
-						"dynamodb:UpdateItem",
-						"dynamodb:BatchWriteItem",
-						"dynamodb:BatchGetItem",
-						"dynamodb:DescribeTable",
-						"dynamodb:ConditionCheckItem"
-					],
-					"Effect": "Allow",
-					"Resource": "%s"
-				}
-			]
-		}`, lambdaConfig.DynamoARN)
+		iamFactory.ClearPolicies()
+		iamFactory.AddDynamoDBCrudPolicy(dynamoTable.Name)
+		dynamoPolicy, err := iamFactory.GetPolicyStatement()
+		if err != nil {
+			return err
+		}
 
 		roles := make(map[string]*iam.Role)
 
@@ -160,21 +149,9 @@ func main() {
 		for _, function := range functions {
 			// Give the role the ability to run on AWS Lambda
 			roleArgs := &iam.RoleArgs{
-				AssumeRolePolicy: pulumi.String(`{
-					"Version": "2012-10-17",
-					"Statement": [
-					{
-						"Action": "sts:AssumeRole",
-						"Principal": {
-							"Service": "lambda.amazonaws.com"
-						},
-						"Effect": "Allow",
-						"Sid": ""
-					}
-					]
-				}`),
-				Description: pulumi.String(fmt.Sprintf("Role for the User Service (%s) of the ACME Serverless Fitness Shop", function)),
-				Tags:        pulumi.Map(tagMap),
+				AssumeRolePolicy: pulumi.String(sampolicies.AssumeRoleLambda()),
+				Description:      pulumi.String(fmt.Sprintf("Role for the User Service (%s) of the ACME Serverless Fitness Shop", function)),
+				Tags:             pulumi.Map(tagMap),
 			}
 
 			role, err := iam.NewRole(ctx, fmt.Sprintf("ACMEServerlessUserRole-%s", function), roleArgs)
@@ -195,7 +172,7 @@ func main() {
 			_, err = iam.NewRolePolicy(ctx, fmt.Sprintf("ACMEServerlessUserPolicy-%s", function), &iam.RolePolicyArgs{
 				Name:   pulumi.String(fmt.Sprintf("ACMEServerlessUserPolicy-%s", function)),
 				Role:   role.Name,
-				Policy: pulumi.String(dynamoCRUDPolicyString),
+				Policy: pulumi.String(dynamoPolicy),
 			})
 			if err != nil {
 				return err
@@ -208,13 +185,13 @@ func main() {
 		// All functions will have the same environment variables, with the exception
 		// of the function name
 		variables := make(map[string]pulumi.StringInput)
-		variables["REGION"] = pulumi.String(lambdaConfig.Region)
-		variables["SENTRY_DSN"] = pulumi.String(lambdaConfig.SentryDSN)
+		variables["REGION"] = pulumi.String(genericConfig.Region)
+		variables["SENTRY_DSN"] = pulumi.String(genericConfig.SentryDSN)
 		variables["VERSION"] = tags.Version
 		variables["STAGE"] = pulumi.String(ctx.Stack())
-		parts := strings.Split(lambdaConfig.DynamoARN, "/")
-		variables["TABLE"] = pulumi.String(parts[1])
+		variables["TABLE"] = pulumi.String(dynamoTable.Name)
 
+		variables["FUNCTION_NAME"] = pulumi.String(fmt.Sprintf("%s-lambda-user-all", ctx.Stack()))
 		environment := lambda.FunctionEnvironmentArgs{
 			Variables: pulumi.StringMap(variables),
 		}
@@ -232,7 +209,6 @@ func main() {
 			Role:        roles["lambda-user-all"].Arn,
 			Tags:        pulumi.Map(tagMap),
 		}
-		variables["FUNCTION_NAME"] = pulumi.String(fmt.Sprintf("%s-lambda-user-all", ctx.Stack()))
 
 		function, err := lambda.NewFunction(ctx, fmt.Sprintf("%s-lambda-user-all", ctx.Stack()), functionArgs)
 		if err != nil {
@@ -265,7 +241,7 @@ func main() {
 			Action:    pulumi.String("lambda:InvokeFunction"),
 			Function:  function.Name,
 			Principal: pulumi.String("apigateway.amazonaws.com"),
-			SourceArn: pulumi.Sprintf("arn:aws:execute-api:%s:%s:%s/*/GET/users", lambdaConfig.Region, lambdaConfig.AccountID, gateway.ID()),
+			SourceArn: pulumi.Sprintf("arn:aws:execute-api:%s:%s:%s/*/GET/users", genericConfig.Region, genericConfig.AccountID, gateway.ID()),
 		}, pulumi.DependsOn([]pulumi.Resource{gateway, usersResource, function}))
 		if err != nil {
 			return err
@@ -274,6 +250,11 @@ func main() {
 		ctx.Export("lambda-user-all::Arn", function.Arn)
 
 		// Create the Get function
+		variables["FUNCTION_NAME"] = pulumi.String(fmt.Sprintf("%s-lambda-user-get", ctx.Stack()))
+		environment = lambda.FunctionEnvironmentArgs{
+			Variables: pulumi.StringMap(variables),
+		}
+
 		functionArgs = &lambda.FunctionArgs{
 			Description: pulumi.String("A Lambda function to get a user from DynamoDB"),
 			Runtime:     pulumi.String("go1.x"),
@@ -286,7 +267,6 @@ func main() {
 			Role:        roles["lambda-user-get"].Arn,
 			Tags:        pulumi.Map(tagMap),
 		}
-		variables["FUNCTION_NAME"] = pulumi.String(fmt.Sprintf("%s-lambda-user-get", ctx.Stack()))
 
 		function, err = lambda.NewFunction(ctx, fmt.Sprintf("%s-lambda-user-get", ctx.Stack()), functionArgs)
 		if err != nil {
@@ -328,7 +308,7 @@ func main() {
 			Action:    pulumi.String("lambda:InvokeFunction"),
 			Function:  function.Name,
 			Principal: pulumi.String("apigateway.amazonaws.com"),
-			SourceArn: pulumi.Sprintf("arn:aws:execute-api:%s:%s:%s/*/GET/users/*", lambdaConfig.Region, lambdaConfig.AccountID, gateway.ID()),
+			SourceArn: pulumi.Sprintf("arn:aws:execute-api:%s:%s:%s/*/GET/users/*", genericConfig.Region, genericConfig.AccountID, gateway.ID()),
 		}, pulumi.DependsOn([]pulumi.Resource{gateway, resource, function}))
 		if err != nil {
 			return err
@@ -337,6 +317,11 @@ func main() {
 		ctx.Export("lambda-user-get::Arn", function.Arn)
 
 		// Create the Login function
+		variables["FUNCTION_NAME"] = pulumi.String(fmt.Sprintf("%s-lambda-user-login", ctx.Stack()))
+		environment = lambda.FunctionEnvironmentArgs{
+			Variables: pulumi.StringMap(variables),
+		}
+
 		functionArgs = &lambda.FunctionArgs{
 			Description: pulumi.String("A Lambda function to login"),
 			Runtime:     pulumi.String("go1.x"),
@@ -349,7 +334,6 @@ func main() {
 			Role:        roles["lambda-user-login"].Arn,
 			Tags:        pulumi.Map(tagMap),
 		}
-		variables["FUNCTION_NAME"] = pulumi.String(fmt.Sprintf("%s-lambda-user-login", ctx.Stack()))
 
 		function, err = lambda.NewFunction(ctx, fmt.Sprintf("%s-lambda-user-login", ctx.Stack()), functionArgs)
 		if err != nil {
@@ -391,7 +375,7 @@ func main() {
 			Action:    pulumi.String("lambda:InvokeFunction"),
 			Function:  function.Name,
 			Principal: pulumi.String("apigateway.amazonaws.com"),
-			SourceArn: pulumi.Sprintf("arn:aws:execute-api:%s:%s:%s/*/POST/login", lambdaConfig.Region, lambdaConfig.AccountID, gateway.ID()),
+			SourceArn: pulumi.Sprintf("arn:aws:execute-api:%s:%s:%s/*/POST/login", genericConfig.Region, genericConfig.AccountID, gateway.ID()),
 		}, pulumi.DependsOn([]pulumi.Resource{gateway, function}))
 		if err != nil {
 			return err
@@ -400,6 +384,11 @@ func main() {
 		ctx.Export("lambda-user-login::Arn", function.Arn)
 
 		// Create the RefreshToken function
+		variables["FUNCTION_NAME"] = pulumi.String(fmt.Sprintf("%s-lambda-user-refreshtoken", ctx.Stack()))
+		environment = lambda.FunctionEnvironmentArgs{
+			Variables: pulumi.StringMap(variables),
+		}
+
 		functionArgs = &lambda.FunctionArgs{
 			Description: pulumi.String("A Lambda function to refresh a JWT token"),
 			Runtime:     pulumi.String("go1.x"),
@@ -454,7 +443,7 @@ func main() {
 			Action:    pulumi.String("lambda:InvokeFunction"),
 			Function:  function.Name,
 			Principal: pulumi.String("apigateway.amazonaws.com"),
-			SourceArn: pulumi.Sprintf("arn:aws:execute-api:%s:%s:%s/*/POST/refresh-token", lambdaConfig.Region, lambdaConfig.AccountID, gateway.ID()),
+			SourceArn: pulumi.Sprintf("arn:aws:execute-api:%s:%s:%s/*/POST/refresh-token", genericConfig.Region, genericConfig.AccountID, gateway.ID()),
 		}, pulumi.DependsOn([]pulumi.Resource{gateway, function}))
 		if err != nil {
 			return err
@@ -463,6 +452,11 @@ func main() {
 		ctx.Export("lambda-user-refreshtoken::Arn", function.Arn)
 
 		// Create the Register function
+		variables["FUNCTION_NAME"] = pulumi.String(fmt.Sprintf("%s-lambda-user-register", ctx.Stack()))
+		environment = lambda.FunctionEnvironmentArgs{
+			Variables: pulumi.StringMap(variables),
+		}
+
 		functionArgs = &lambda.FunctionArgs{
 			Description: pulumi.String("A Lambda function to register new users in DynamoDB"),
 			Runtime:     pulumi.String("go1.x"),
@@ -475,7 +469,6 @@ func main() {
 			Role:        roles["lambda-user-register"].Arn,
 			Tags:        pulumi.Map(tagMap),
 		}
-		variables["FUNCTION_NAME"] = pulumi.String(fmt.Sprintf("%s-lambda-user-register", ctx.Stack()))
 
 		function, err = lambda.NewFunction(ctx, fmt.Sprintf("%s-lambda-user-register", ctx.Stack()), functionArgs)
 		if err != nil {
@@ -517,7 +510,7 @@ func main() {
 			Action:    pulumi.String("lambda:InvokeFunction"),
 			Function:  function.Name,
 			Principal: pulumi.String("apigateway.amazonaws.com"),
-			SourceArn: pulumi.Sprintf("arn:aws:execute-api:%s:%s:%s/*/POST/register", lambdaConfig.Region, lambdaConfig.AccountID, gateway.ID()),
+			SourceArn: pulumi.Sprintf("arn:aws:execute-api:%s:%s:%s/*/POST/register", genericConfig.Region, genericConfig.AccountID, gateway.ID()),
 		}, pulumi.DependsOn([]pulumi.Resource{gateway, function}))
 		if err != nil {
 			return err
@@ -526,6 +519,11 @@ func main() {
 		ctx.Export("lambda-user-register::Arn", function.Arn)
 
 		// Create the VerifyToken function
+		variables["FUNCTION_NAME"] = pulumi.String(fmt.Sprintf("%s-lambda-user-verifytoken", ctx.Stack()))
+		environment = lambda.FunctionEnvironmentArgs{
+			Variables: pulumi.StringMap(variables),
+		}
+
 		functionArgs = &lambda.FunctionArgs{
 			Description: pulumi.String("A Lambda function to verify a JWT token"),
 			Runtime:     pulumi.String("go1.x"),
@@ -538,7 +536,6 @@ func main() {
 			Role:        roles["lambda-user-verifytoken"].Arn,
 			Tags:        pulumi.Map(tagMap),
 		}
-		variables["FUNCTION_NAME"] = pulumi.String(fmt.Sprintf("%s-lambda-user-verifytoken", ctx.Stack()))
 
 		function, err = lambda.NewFunction(ctx, fmt.Sprintf("%s-lambda-user-verifytoken", ctx.Stack()), functionArgs)
 		if err != nil {
@@ -580,7 +577,7 @@ func main() {
 			Action:    pulumi.String("lambda:InvokeFunction"),
 			Function:  function.Name,
 			Principal: pulumi.String("apigateway.amazonaws.com"),
-			SourceArn: pulumi.Sprintf("arn:aws:execute-api:%s:%s:%s/*/POST/verify-token", lambdaConfig.Region, lambdaConfig.AccountID, gateway.ID()),
+			SourceArn: pulumi.Sprintf("arn:aws:execute-api:%s:%s:%s/*/POST/verify-token", genericConfig.Region, genericConfig.AccountID, gateway.ID()),
 		}, pulumi.DependsOn([]pulumi.Resource{gateway, function}))
 		if err != nil {
 			return err
@@ -590,14 +587,4 @@ func main() {
 
 		return nil
 	})
-}
-
-// run creates a Cmd struct to execute the named program with the given arguments.
-// After that, it starts the specified command and waits for it to complete.
-func run(folder string, args string) error {
-	cmd := exec.Command(shell, shellFlag, args)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Dir = folder
-	return cmd.Run()
 }

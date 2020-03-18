@@ -25,16 +25,14 @@ You'll need to create a [Pulumi.dev.yaml](./pulumi/Pulumi.dev.yaml) file that wi
 ```yaml
 config:
   aws:region: us-west-2 ## The region you want to deploy to
-  awsconfig:lambda:
-    dynamoarn: ## The ARN to the DynamoDB table
+  awsconfig:generic:
     sentrydsn: ## The DSN to connect to Sentry
-    region: ## The region you want to deploy to
-    accountid: ## Your AWS sccount ID
+    accountid: ## Your AWS Account ID
   awsconfig:tags:
     author: retgits ## The author, you...
     feature: acmeserverless
     team: vcs ## The team you're on
-    version: 0.1.0 ## The version
+    version: 0.2.0 ## The version
 ```
 
 To create the Pulumi stack, and create the User service, run `pulumi up`.

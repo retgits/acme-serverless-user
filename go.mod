@@ -10,4 +10,5 @@ require (
 	github.com/gofrs/uuid v3.2.0+incompatible
 	github.com/pulumi/pulumi v1.12.1
 	github.com/pulumi/pulumi-aws v1.26.0
+	github.com/retgits/pulumi-helpers v0.1.4
 )
