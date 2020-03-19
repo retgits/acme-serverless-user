@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/pulumi/pulumi/sdk/go/pulumi"
 	"github.com/pulumi/pulumi/sdk/go/pulumi/config"
 	"github.com/retgits/pulumi-helpers/builder"
+	gw "github.com/retgits/pulumi-helpers/gateway"
 	"github.com/retgits/pulumi-helpers/sampolicies"
 )
 
@@ -100,35 +102,6 @@ func main() {
 		// Create a factory to get policies from
 		iamFactory := sampolicies.NewFactory().WithAccountID(genericConfig.AccountID).WithPartition("aws").WithRegion(genericConfig.Region)
 
-		// Create the API Gateway Policy
-		iamFactory.AddAssumeRoleLambda()
-		iamFactory.AddExecuteAPI()
-		policies, err := iamFactory.GetPolicyStatement()
-		if err != nil {
-			return err
-		}
-
-		// Create an API Gateway
-		gateway, err := apigateway.NewRestApi(ctx, "UserService", &apigateway.RestApiArgs{
-			Name:        pulumi.String("UserService"),
-			Description: pulumi.String("ACME Serverless Fitness Shop - User"),
-			Tags:        pulumi.Map(tagMap),
-			Policy:      pulumi.String(policies),
-		})
-		if err != nil {
-			return err
-		}
-
-		// Create the parent resources in the API Gateway
-		usersResource, err := apigateway.NewResource(ctx, "UsersAPIResource", &apigateway.ResourceArgs{
-			RestApi:  gateway.ID(),
-			PathPart: pulumi.String("users"),
-			ParentId: gateway.RootResourceId,
-		})
-		if err != nil {
-			return err
-		}
-
 		// Lookup the DynamoDB table
 		dynamoTable, err := dynamodb.LookupTable(ctx, &dynamodb.LookupTableArgs{
 			Name: fmt.Sprintf("%s-acmeserverless-dynamodb", ctx.Stack()),
@@ -210,44 +183,12 @@ func main() {
 			Tags:        pulumi.Map(tagMap),
 		}
 
-		function, err := lambda.NewFunction(ctx, fmt.Sprintf("%s-lambda-user-all", ctx.Stack()), functionArgs)
+		userAllFunction, err := lambda.NewFunction(ctx, fmt.Sprintf("%s-lambda-user-all", ctx.Stack()), functionArgs)
 		if err != nil {
 			return err
 		}
 
-		_, err = apigateway.NewMethod(ctx, "AllUsersAPIGetMethod", &apigateway.MethodArgs{
-			HttpMethod:    pulumi.String("GET"),
-			Authorization: pulumi.String("NONE"),
-			RestApi:       gateway.ID(),
-			ResourceId:    usersResource.ID(),
-		}, pulumi.DependsOn([]pulumi.Resource{gateway, usersResource}))
-		if err != nil {
-			return err
-		}
-
-		_, err = apigateway.NewIntegration(ctx, "AllUsersAPIIntegration", &apigateway.IntegrationArgs{
-			HttpMethod:            pulumi.String("GET"),
-			IntegrationHttpMethod: pulumi.String("POST"),
-			ResourceId:            usersResource.ID(),
-			RestApi:               gateway.ID(),
-			Type:                  pulumi.String("AWS_PROXY"),
-			Uri:                   function.InvokeArn,
-		}, pulumi.DependsOn([]pulumi.Resource{gateway, usersResource, function}))
-		if err != nil {
-			return err
-		}
-
-		_, err = lambda.NewPermission(ctx, "AllUsersAPIPermission", &lambda.PermissionArgs{
-			Action:    pulumi.String("lambda:InvokeFunction"),
-			Function:  function.Name,
-			Principal: pulumi.String("apigateway.amazonaws.com"),
-			SourceArn: pulumi.Sprintf("arn:aws:execute-api:%s:%s:%s/*/GET/users", genericConfig.Region, genericConfig.AccountID, gateway.ID()),
-		}, pulumi.DependsOn([]pulumi.Resource{gateway, usersResource, function}))
-		if err != nil {
-			return err
-		}
-
-		ctx.Export("lambda-user-all::Arn", function.Arn)
+		ctx.Export("lambda-user-all::Arn", userAllFunction.Arn)
 
 		// Create the Get function
 		variables["FUNCTION_NAME"] = pulumi.String(fmt.Sprintf("%s-lambda-user-get", ctx.Stack()))
@@ -268,53 +209,12 @@ func main() {
 			Tags:        pulumi.Map(tagMap),
 		}
 
-		function, err = lambda.NewFunction(ctx, fmt.Sprintf("%s-lambda-user-get", ctx.Stack()), functionArgs)
+		userGetFunction, err := lambda.NewFunction(ctx, fmt.Sprintf("%s-lambda-user-get", ctx.Stack()), functionArgs)
 		if err != nil {
 			return err
 		}
 
-		resource, err := apigateway.NewResource(ctx, "GetUserAPI", &apigateway.ResourceArgs{
-			RestApi:  gateway.ID(),
-			PathPart: pulumi.String("{id}"),
-			ParentId: usersResource.ID(),
-		}, pulumi.DependsOn([]pulumi.Resource{gateway}))
-		if err != nil {
-			return err
-		}
-
-		_, err = apigateway.NewMethod(ctx, "GetUserAPIGetMethod", &apigateway.MethodArgs{
-			HttpMethod:    pulumi.String("GET"),
-			Authorization: pulumi.String("NONE"),
-			RestApi:       gateway.ID(),
-			ResourceId:    resource.ID(),
-		}, pulumi.DependsOn([]pulumi.Resource{gateway, resource}))
-		if err != nil {
-			return err
-		}
-
-		_, err = apigateway.NewIntegration(ctx, "GetUserAPIIntegration", &apigateway.IntegrationArgs{
-			HttpMethod:            pulumi.String("GET"),
-			IntegrationHttpMethod: pulumi.String("POST"),
-			ResourceId:            resource.ID(),
-			RestApi:               gateway.ID(),
-			Type:                  pulumi.String("AWS_PROXY"),
-			Uri:                   function.InvokeArn,
-		}, pulumi.DependsOn([]pulumi.Resource{gateway, resource, function}))
-		if err != nil {
-			return err
-		}
-
-		_, err = lambda.NewPermission(ctx, "GetUserAPIPermission", &lambda.PermissionArgs{
-			Action:    pulumi.String("lambda:InvokeFunction"),
-			Function:  function.Name,
-			Principal: pulumi.String("apigateway.amazonaws.com"),
-			SourceArn: pulumi.Sprintf("arn:aws:execute-api:%s:%s:%s/*/GET/users/*", genericConfig.Region, genericConfig.AccountID, gateway.ID()),
-		}, pulumi.DependsOn([]pulumi.Resource{gateway, resource, function}))
-		if err != nil {
-			return err
-		}
-
-		ctx.Export("lambda-user-get::Arn", function.Arn)
+		ctx.Export("lambda-user-get::Arn", userGetFunction.Arn)
 
 		// Create the Login function
 		variables["FUNCTION_NAME"] = pulumi.String(fmt.Sprintf("%s-lambda-user-login", ctx.Stack()))
@@ -335,53 +235,12 @@ func main() {
 			Tags:        pulumi.Map(tagMap),
 		}
 
-		function, err = lambda.NewFunction(ctx, fmt.Sprintf("%s-lambda-user-login", ctx.Stack()), functionArgs)
+		userLoginFunction, err := lambda.NewFunction(ctx, fmt.Sprintf("%s-lambda-user-login", ctx.Stack()), functionArgs)
 		if err != nil {
 			return err
 		}
 
-		resource, err = apigateway.NewResource(ctx, "LoginUserAPI", &apigateway.ResourceArgs{
-			RestApi:  gateway.ID(),
-			PathPart: pulumi.String("login"),
-			ParentId: gateway.RootResourceId,
-		}, pulumi.DependsOn([]pulumi.Resource{gateway}))
-		if err != nil {
-			return err
-		}
-
-		_, err = apigateway.NewMethod(ctx, "LoginUserAPIPostMethod", &apigateway.MethodArgs{
-			HttpMethod:    pulumi.String("POST"),
-			Authorization: pulumi.String("NONE"),
-			RestApi:       gateway.ID(),
-			ResourceId:    resource.ID(),
-		}, pulumi.DependsOn([]pulumi.Resource{gateway, resource}))
-		if err != nil {
-			return err
-		}
-
-		_, err = apigateway.NewIntegration(ctx, "LoginUserAPIIntegration", &apigateway.IntegrationArgs{
-			HttpMethod:            pulumi.String("POST"),
-			IntegrationHttpMethod: pulumi.String("POST"),
-			ResourceId:            resource.ID(),
-			RestApi:               gateway.ID(),
-			Type:                  pulumi.String("AWS_PROXY"),
-			Uri:                   function.InvokeArn,
-		}, pulumi.DependsOn([]pulumi.Resource{gateway, resource, function}))
-		if err != nil {
-			return err
-		}
-
-		_, err = lambda.NewPermission(ctx, "LoginUserAPIPermission", &lambda.PermissionArgs{
-			Action:    pulumi.String("lambda:InvokeFunction"),
-			Function:  function.Name,
-			Principal: pulumi.String("apigateway.amazonaws.com"),
-			SourceArn: pulumi.Sprintf("arn:aws:execute-api:%s:%s:%s/*/POST/login", genericConfig.Region, genericConfig.AccountID, gateway.ID()),
-		}, pulumi.DependsOn([]pulumi.Resource{gateway, function}))
-		if err != nil {
-			return err
-		}
-
-		ctx.Export("lambda-user-login::Arn", function.Arn)
+		ctx.Export("lambda-user-login::Arn", userLoginFunction.Arn)
 
 		// Create the RefreshToken function
 		variables["FUNCTION_NAME"] = pulumi.String(fmt.Sprintf("%s-lambda-user-refreshtoken", ctx.Stack()))
@@ -403,53 +262,12 @@ func main() {
 		}
 		variables["FUNCTION_NAME"] = pulumi.String(fmt.Sprintf("%s-lambda-user-refreshtoken", ctx.Stack()))
 
-		function, err = lambda.NewFunction(ctx, fmt.Sprintf("%s-lambda-user-refreshtoken", ctx.Stack()), functionArgs)
+		userRefreshTokenFunction, err := lambda.NewFunction(ctx, fmt.Sprintf("%s-lambda-user-refreshtoken", ctx.Stack()), functionArgs)
 		if err != nil {
 			return err
 		}
 
-		resource, err = apigateway.NewResource(ctx, "RefreshTokenAPI", &apigateway.ResourceArgs{
-			RestApi:  gateway.ID(),
-			PathPart: pulumi.String("refresh-token"),
-			ParentId: gateway.RootResourceId,
-		}, pulumi.DependsOn([]pulumi.Resource{gateway}))
-		if err != nil {
-			return err
-		}
-
-		_, err = apigateway.NewMethod(ctx, "RefreshTokenAPIAPIPostMethod", &apigateway.MethodArgs{
-			HttpMethod:    pulumi.String("POST"),
-			Authorization: pulumi.String("NONE"),
-			RestApi:       gateway.ID(),
-			ResourceId:    resource.ID(),
-		}, pulumi.DependsOn([]pulumi.Resource{gateway, resource}))
-		if err != nil {
-			return err
-		}
-
-		_, err = apigateway.NewIntegration(ctx, "RefreshTokenAPIAPIIntegration", &apigateway.IntegrationArgs{
-			HttpMethod:            pulumi.String("POST"),
-			IntegrationHttpMethod: pulumi.String("POST"),
-			ResourceId:            resource.ID(),
-			RestApi:               gateway.ID(),
-			Type:                  pulumi.String("AWS_PROXY"),
-			Uri:                   function.InvokeArn,
-		}, pulumi.DependsOn([]pulumi.Resource{gateway, resource, function}))
-		if err != nil {
-			return err
-		}
-
-		_, err = lambda.NewPermission(ctx, "RefreshTokenAPIAPIPermission", &lambda.PermissionArgs{
-			Action:    pulumi.String("lambda:InvokeFunction"),
-			Function:  function.Name,
-			Principal: pulumi.String("apigateway.amazonaws.com"),
-			SourceArn: pulumi.Sprintf("arn:aws:execute-api:%s:%s:%s/*/POST/refresh-token", genericConfig.Region, genericConfig.AccountID, gateway.ID()),
-		}, pulumi.DependsOn([]pulumi.Resource{gateway, function}))
-		if err != nil {
-			return err
-		}
-
-		ctx.Export("lambda-user-refreshtoken::Arn", function.Arn)
+		ctx.Export("lambda-user-refreshtoken::Arn", userRefreshTokenFunction.Arn)
 
 		// Create the Register function
 		variables["FUNCTION_NAME"] = pulumi.String(fmt.Sprintf("%s-lambda-user-register", ctx.Stack()))
@@ -470,53 +288,12 @@ func main() {
 			Tags:        pulumi.Map(tagMap),
 		}
 
-		function, err = lambda.NewFunction(ctx, fmt.Sprintf("%s-lambda-user-register", ctx.Stack()), functionArgs)
+		userRegisterFunction, err := lambda.NewFunction(ctx, fmt.Sprintf("%s-lambda-user-register", ctx.Stack()), functionArgs)
 		if err != nil {
 			return err
 		}
 
-		resource, err = apigateway.NewResource(ctx, "RegisterUserAPI", &apigateway.ResourceArgs{
-			RestApi:  gateway.ID(),
-			PathPart: pulumi.String("register"),
-			ParentId: gateway.RootResourceId,
-		}, pulumi.DependsOn([]pulumi.Resource{gateway}))
-		if err != nil {
-			return err
-		}
-
-		_, err = apigateway.NewMethod(ctx, "RegisterUserAPIPostMethod", &apigateway.MethodArgs{
-			HttpMethod:    pulumi.String("POST"),
-			Authorization: pulumi.String("NONE"),
-			RestApi:       gateway.ID(),
-			ResourceId:    resource.ID(),
-		}, pulumi.DependsOn([]pulumi.Resource{gateway, resource}))
-		if err != nil {
-			return err
-		}
-
-		_, err = apigateway.NewIntegration(ctx, "RegisterUserAPIIntegration", &apigateway.IntegrationArgs{
-			HttpMethod:            pulumi.String("POST"),
-			IntegrationHttpMethod: pulumi.String("POST"),
-			ResourceId:            resource.ID(),
-			RestApi:               gateway.ID(),
-			Type:                  pulumi.String("AWS_PROXY"),
-			Uri:                   function.InvokeArn,
-		}, pulumi.DependsOn([]pulumi.Resource{gateway, resource, function}))
-		if err != nil {
-			return err
-		}
-
-		_, err = lambda.NewPermission(ctx, "RegisterUserAPIPermission", &lambda.PermissionArgs{
-			Action:    pulumi.String("lambda:InvokeFunction"),
-			Function:  function.Name,
-			Principal: pulumi.String("apigateway.amazonaws.com"),
-			SourceArn: pulumi.Sprintf("arn:aws:execute-api:%s:%s:%s/*/POST/register", genericConfig.Region, genericConfig.AccountID, gateway.ID()),
-		}, pulumi.DependsOn([]pulumi.Resource{gateway, function}))
-		if err != nil {
-			return err
-		}
-
-		ctx.Export("lambda-user-register::Arn", function.Arn)
+		ctx.Export("lambda-user-register::Arn", userRegisterFunction.Arn)
 
 		// Create the VerifyToken function
 		variables["FUNCTION_NAME"] = pulumi.String(fmt.Sprintf("%s-lambda-user-verifytoken", ctx.Stack()))
@@ -537,53 +314,189 @@ func main() {
 			Tags:        pulumi.Map(tagMap),
 		}
 
-		function, err = lambda.NewFunction(ctx, fmt.Sprintf("%s-lambda-user-verifytoken", ctx.Stack()), functionArgs)
+		userVerifyTokenFunction, err := lambda.NewFunction(ctx, fmt.Sprintf("%s-lambda-user-verifytoken", ctx.Stack()), functionArgs)
 		if err != nil {
 			return err
 		}
 
-		resource, err = apigateway.NewResource(ctx, "VerifyTokenAPI", &apigateway.ResourceArgs{
-			RestApi:  gateway.ID(),
-			PathPart: pulumi.String("verify-token"),
-			ParentId: gateway.RootResourceId,
-		}, pulumi.DependsOn([]pulumi.Resource{gateway}))
+		ctx.Export("lambda-user-verifytoken::Arn", userVerifyTokenFunction.Arn)
+
+		// Create the API Gateway Policy
+		iamFactory.ClearPolicies()
+		iamFactory.AddAssumeRoleLambda()
+		iamFactory.AddExecuteAPI()
+		policies, err := iamFactory.GetPolicyStatement()
 		if err != nil {
 			return err
 		}
 
-		_, err = apigateway.NewMethod(ctx, "VerifyTokenAPIPostMethod", &apigateway.MethodArgs{
-			HttpMethod:    pulumi.String("POST"),
-			Authorization: pulumi.String("NONE"),
-			RestApi:       gateway.ID(),
-			ResourceId:    resource.ID(),
-		}, pulumi.DependsOn([]pulumi.Resource{gateway, resource}))
+		// Read the OpenAPI specification
+		bytes, err := ioutil.ReadFile("../api/openapi.json")
 		if err != nil {
 			return err
 		}
 
-		_, err = apigateway.NewIntegration(ctx, "VerifyTokenAPIIntegration", &apigateway.IntegrationArgs{
-			HttpMethod:            pulumi.String("POST"),
-			IntegrationHttpMethod: pulumi.String("POST"),
-			ResourceId:            resource.ID(),
-			RestApi:               gateway.ID(),
-			Type:                  pulumi.String("AWS_PROXY"),
-			Uri:                   function.InvokeArn,
-		}, pulumi.DependsOn([]pulumi.Resource{gateway, resource, function}))
+		// Create an API Gateway
+		gateway, err := apigateway.NewRestApi(ctx, "UserService", &apigateway.RestApiArgs{
+			Name:        pulumi.String("UserService"),
+			Description: pulumi.String("ACME Serverless Fitness Shop - User"),
+			Tags:        pulumi.Map(tagMap),
+			Policy:      pulumi.String(policies),
+			Body:        pulumi.StringPtr(string(bytes)),
+		})
 		if err != nil {
 			return err
 		}
 
-		_, err = lambda.NewPermission(ctx, "VerifyTokenAPIPermission", &lambda.PermissionArgs{
-			Action:    pulumi.String("lambda:InvokeFunction"),
-			Function:  function.Name,
-			Principal: pulumi.String("apigateway.amazonaws.com"),
-			SourceArn: pulumi.Sprintf("arn:aws:execute-api:%s:%s:%s/*/POST/verify-token", genericConfig.Region, genericConfig.AccountID, gateway.ID()),
-		}, pulumi.DependsOn([]pulumi.Resource{gateway, function}))
-		if err != nil {
-			return err
-		}
+		gatewayURL := gateway.ID().ToStringOutput().ApplyString(func(id string) string {
+			resource := gw.MustGetGatewayResource(ctx, id, "/users")
 
-		ctx.Export("lambda-user-verifytoken::Arn", function.Arn)
+			_, err = apigateway.NewIntegration(ctx, "AllUsersAPIIntegration", &apigateway.IntegrationArgs{
+				HttpMethod:            pulumi.String("GET"),
+				IntegrationHttpMethod: pulumi.String("POST"),
+				ResourceId:            pulumi.String(resource.Id),
+				RestApi:               gateway.ID(),
+				Type:                  pulumi.String("AWS_PROXY"),
+				Uri:                   userAllFunction.InvokeArn,
+			})
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			_, err = lambda.NewPermission(ctx, "AllUsersAPIPermission", &lambda.PermissionArgs{
+				Action:    pulumi.String("lambda:InvokeFunction"),
+				Function:  userAllFunction.Name,
+				Principal: pulumi.String("apigateway.amazonaws.com"),
+				SourceArn: pulumi.Sprintf("arn:aws:execute-api:%s:%s:%s/*/GET/users", genericConfig.Region, genericConfig.AccountID, gateway.ID()),
+			})
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			resource = gw.MustGetGatewayResource(ctx, id, "/users/{id}")
+
+			_, err = apigateway.NewIntegration(ctx, "GetUserAPIIntegration", &apigateway.IntegrationArgs{
+				HttpMethod:            pulumi.String("GET"),
+				IntegrationHttpMethod: pulumi.String("POST"),
+				ResourceId:            pulumi.String(resource.Id),
+				RestApi:               gateway.ID(),
+				Type:                  pulumi.String("AWS_PROXY"),
+				Uri:                   userGetFunction.InvokeArn,
+			})
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			_, err = lambda.NewPermission(ctx, "GetUserAPIPermission", &lambda.PermissionArgs{
+				Action:    pulumi.String("lambda:InvokeFunction"),
+				Function:  userGetFunction.Name,
+				Principal: pulumi.String("apigateway.amazonaws.com"),
+				SourceArn: pulumi.Sprintf("arn:aws:execute-api:%s:%s:%s/*/GET/users/*", genericConfig.Region, genericConfig.AccountID, gateway.ID()),
+			})
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			resource = gw.MustGetGatewayResource(ctx, id, "/login")
+
+			_, err = apigateway.NewIntegration(ctx, "LoginUserAPIIntegration", &apigateway.IntegrationArgs{
+				HttpMethod:            pulumi.String("POST"),
+				IntegrationHttpMethod: pulumi.String("POST"),
+				ResourceId:            pulumi.String(resource.Id),
+				RestApi:               gateway.ID(),
+				Type:                  pulumi.String("AWS_PROXY"),
+				Uri:                   userLoginFunction.InvokeArn,
+			})
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			_, err = lambda.NewPermission(ctx, "LoginUserAPIPermission", &lambda.PermissionArgs{
+				Action:    pulumi.String("lambda:InvokeFunction"),
+				Function:  userLoginFunction.Name,
+				Principal: pulumi.String("apigateway.amazonaws.com"),
+				SourceArn: pulumi.Sprintf("arn:aws:execute-api:%s:%s:%s/*/POST/login", genericConfig.Region, genericConfig.AccountID, gateway.ID()),
+			})
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			resource = gw.MustGetGatewayResource(ctx, id, "/refresh-token")
+
+			_, err = apigateway.NewIntegration(ctx, "RefreshTokenAPIAPIIntegration", &apigateway.IntegrationArgs{
+				HttpMethod:            pulumi.String("POST"),
+				IntegrationHttpMethod: pulumi.String("POST"),
+				ResourceId:            pulumi.String(resource.Id),
+				RestApi:               gateway.ID(),
+				Type:                  pulumi.String("AWS_PROXY"),
+				Uri:                   userRefreshTokenFunction.InvokeArn,
+			})
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			_, err = lambda.NewPermission(ctx, "RefreshTokenAPIAPIPermission", &lambda.PermissionArgs{
+				Action:    pulumi.String("lambda:InvokeFunction"),
+				Function:  userRefreshTokenFunction.Name,
+				Principal: pulumi.String("apigateway.amazonaws.com"),
+				SourceArn: pulumi.Sprintf("arn:aws:execute-api:%s:%s:%s/*/POST/refresh-token", genericConfig.Region, genericConfig.AccountID, gateway.ID()),
+			})
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			resource = gw.MustGetGatewayResource(ctx, id, "/register")
+
+			_, err = apigateway.NewIntegration(ctx, "RegisterUserAPIIntegration", &apigateway.IntegrationArgs{
+				HttpMethod:            pulumi.String("POST"),
+				IntegrationHttpMethod: pulumi.String("POST"),
+				ResourceId:            pulumi.String(resource.Id),
+				RestApi:               gateway.ID(),
+				Type:                  pulumi.String("AWS_PROXY"),
+				Uri:                   userRegisterFunction.InvokeArn,
+			})
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			_, err = lambda.NewPermission(ctx, "RegisterUserAPIPermission", &lambda.PermissionArgs{
+				Action:    pulumi.String("lambda:InvokeFunction"),
+				Function:  userRegisterFunction.Name,
+				Principal: pulumi.String("apigateway.amazonaws.com"),
+				SourceArn: pulumi.Sprintf("arn:aws:execute-api:%s:%s:%s/*/POST/register", genericConfig.Region, genericConfig.AccountID, gateway.ID()),
+			})
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			resource = gw.MustGetGatewayResource(ctx, id, "/verify-token")
+
+			_, err = apigateway.NewIntegration(ctx, "VerifyTokenAPIIntegration", &apigateway.IntegrationArgs{
+				HttpMethod:            pulumi.String("POST"),
+				IntegrationHttpMethod: pulumi.String("POST"),
+				ResourceId:            pulumi.String(resource.Id),
+				RestApi:               gateway.ID(),
+				Type:                  pulumi.String("AWS_PROXY"),
+				Uri:                   userVerifyTokenFunction.InvokeArn,
+			})
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			_, err = lambda.NewPermission(ctx, "VerifyTokenAPIPermission", &lambda.PermissionArgs{
+				Action:    pulumi.String("lambda:InvokeFunction"),
+				Function:  userVerifyTokenFunction.Name,
+				Principal: pulumi.String("apigateway.amazonaws.com"),
+				SourceArn: pulumi.Sprintf("arn:aws:execute-api:%s:%s:%s/*/POST/verify-token", genericConfig.Region, genericConfig.AccountID, gateway.ID()),
+			})
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			return fmt.Sprintf("https://%s.execute-api.%s.amazonaws.com/prod/", id, genericConfig.Region)
+		})
+
+		ctx.Export("Gateway::URL", gatewayURL)
 
 		return nil
 	})
