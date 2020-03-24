@@ -106,6 +106,12 @@ func main() {
 		dynamoTable, err := dynamodb.LookupTable(ctx, &dynamodb.LookupTableArgs{
 			Name: fmt.Sprintf("%s-acmeserverless-dynamodb", ctx.Stack()),
 		})
+		if err != nil {
+			return err
+		}
+		if dynamoTable == nil {
+			return fmt.Errorf("unable to find dynamodb table %s-acmeserverless-dynamodb", ctx.Stack())
+		}
 
 		// dynamoPolicy is a policy template, derived from AWS SAM, to allow apps
 		// to connect to and execute command on Amazon DynamoDB
