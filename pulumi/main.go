@@ -357,7 +357,7 @@ func main() {
 		gatewayURL := gateway.ID().ToStringOutput().ApplyString(func(id string) string {
 			resource := gw.MustGetGatewayResource(ctx, id, "/users")
 
-			_, err = apigateway.NewIntegration(ctx, "AllUsersAPIIntegration", &apigateway.IntegrationArgs{
+			i1, err := apigateway.NewIntegration(ctx, "AllUsersAPIIntegration", &apigateway.IntegrationArgs{
 				HttpMethod:            pulumi.String("GET"),
 				IntegrationHttpMethod: pulumi.String("POST"),
 				ResourceId:            pulumi.String(resource.Id),
@@ -381,7 +381,7 @@ func main() {
 
 			resource = gw.MustGetGatewayResource(ctx, id, "/users/{id}")
 
-			_, err = apigateway.NewIntegration(ctx, "GetUserAPIIntegration", &apigateway.IntegrationArgs{
+			i2, err := apigateway.NewIntegration(ctx, "GetUserAPIIntegration", &apigateway.IntegrationArgs{
 				HttpMethod:            pulumi.String("GET"),
 				IntegrationHttpMethod: pulumi.String("POST"),
 				ResourceId:            pulumi.String(resource.Id),
@@ -405,7 +405,7 @@ func main() {
 
 			resource = gw.MustGetGatewayResource(ctx, id, "/login")
 
-			_, err = apigateway.NewIntegration(ctx, "LoginUserAPIIntegration", &apigateway.IntegrationArgs{
+			i3, err := apigateway.NewIntegration(ctx, "LoginUserAPIIntegration", &apigateway.IntegrationArgs{
 				HttpMethod:            pulumi.String("POST"),
 				IntegrationHttpMethod: pulumi.String("POST"),
 				ResourceId:            pulumi.String(resource.Id),
@@ -429,7 +429,7 @@ func main() {
 
 			resource = gw.MustGetGatewayResource(ctx, id, "/refresh-token")
 
-			_, err = apigateway.NewIntegration(ctx, "RefreshTokenAPIAPIIntegration", &apigateway.IntegrationArgs{
+			i4, err := apigateway.NewIntegration(ctx, "RefreshTokenAPIAPIIntegration", &apigateway.IntegrationArgs{
 				HttpMethod:            pulumi.String("POST"),
 				IntegrationHttpMethod: pulumi.String("POST"),
 				ResourceId:            pulumi.String(resource.Id),
@@ -453,7 +453,7 @@ func main() {
 
 			resource = gw.MustGetGatewayResource(ctx, id, "/register")
 
-			_, err = apigateway.NewIntegration(ctx, "RegisterUserAPIIntegration", &apigateway.IntegrationArgs{
+			i5, err := apigateway.NewIntegration(ctx, "RegisterUserAPIIntegration", &apigateway.IntegrationArgs{
 				HttpMethod:            pulumi.String("POST"),
 				IntegrationHttpMethod: pulumi.String("POST"),
 				ResourceId:            pulumi.String(resource.Id),
@@ -477,7 +477,7 @@ func main() {
 
 			resource = gw.MustGetGatewayResource(ctx, id, "/verify-token")
 
-			_, err = apigateway.NewIntegration(ctx, "VerifyTokenAPIIntegration", &apigateway.IntegrationArgs{
+			i6, err := apigateway.NewIntegration(ctx, "VerifyTokenAPIIntegration", &apigateway.IntegrationArgs{
 				HttpMethod:            pulumi.String("POST"),
 				IntegrationHttpMethod: pulumi.String("POST"),
 				ResourceId:            pulumi.String(resource.Id),
@@ -505,7 +505,7 @@ func main() {
 				RestApi:          gateway.ID(),
 				StageDescription: pulumi.String("Prod Stage"),
 				StageName:        pulumi.String("Prod"),
-			})
+			}, pulumi.DependsOn([]pulumi.Resource{i1, i2, i3, i4, i5, i6}))
 			if err != nil {
 				fmt.Println(err)
 			}
