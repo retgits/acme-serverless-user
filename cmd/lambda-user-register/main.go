@@ -77,7 +77,7 @@ func handleError(area string, headers map[string]string, err error) (events.APIG
 	msg := fmt.Sprintf("error %s: %s", area, err.Error())
 	log.Println(msg)
 	return events.APIGatewayProxyResponse{
-		StatusCode: http.StatusInternalServerError,
+		StatusCode: http.StatusBadRequest,
 		Body:       msg,
 		Headers:    headers,
 	}, nil
