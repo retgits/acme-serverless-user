@@ -1,0 +1,10 @@
+config:
+  aws:region: us-west-2
+  awsconfig:generic:
+    accountid: "01234567890"
+    sentrydsn: https://my/sentry/dsn
+  awsconfig:tags:
+    author: retgits
+    feature: acmeserverless
+    team: vcs
+    version: 0.2.0
