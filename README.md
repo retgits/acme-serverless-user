@@ -28,6 +28,8 @@ config:
   awsconfig:generic:
     sentrydsn: ## The DSN to connect to Sentry
     accountid: ## Your AWS Account ID
+    wavefronturl: ## The URL of your Wavefront instance
+    wavefronttoken: ## Your Wavefront API token
   awsconfig:tags:
     author: retgits ## The author, you...
     feature: acmeserverless

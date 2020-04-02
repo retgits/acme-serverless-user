@@ -10,6 +10,10 @@ template:
           description: The DSN to connect to Sentry
         accountid:
           description: Your AWS Account ID
+        wavefronturl: 
+          description: The URL of your Wavefront instance
+        wavefronttoken:
+          description: Your Wavefront API token
       awsconfig:tags:
         author:
           description: The author, you...

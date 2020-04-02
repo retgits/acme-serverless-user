@@ -13,6 +13,7 @@ import (
 	"github.com/gofrs/uuid"
 	user "github.com/retgits/acme-serverless-user"
 	"github.com/retgits/acme-serverless-user/internal/datastore/dynamodb"
+	wflambda "github.com/wavefronthq/wavefront-lambda-go"
 )
 
 // handler handles the API Gateway events and returns an error if anything goes wrong.
@@ -85,5 +86,5 @@ func handleError(area string, headers map[string]string, err error) (events.APIG
 
 // The main method is executed by AWS Lambda and points to the handler
 func main() {
-	lambda.Start(handler)
+	lambda.Start(wflambda.Wrapper(handler))
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/getsentry/sentry-go"
 	user "github.com/retgits/acme-serverless-user"
+	wflambda "github.com/wavefronthq/wavefront-lambda-go"
 )
 
 // handler handles the API Gateway events and returns an error if anything goes wrong.
@@ -83,7 +84,7 @@ func handleError(area string, headers map[string]string, err error) (events.APIG
 
 // The main method is executed by AWS Lambda and points to the handler
 func main() {
-	lambda.Start(handler)
+	lambda.Start(wflambda.Wrapper(handler))
 }
 
 // ValidateToken is used to validate both access_token and refresh_token. It is done based on the "Key ID" provided by the JWT

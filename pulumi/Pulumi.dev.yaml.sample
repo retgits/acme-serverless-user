@@ -3,6 +3,8 @@ config:
   awsconfig:generic:
     accountid: "01234567890"
     sentrydsn: https://my/sentry/dsn
+    wavefronturl: https://my/wavefront/url
+    wavefronttoken: "abcd1234"
   awsconfig:tags:
     author: retgits
     feature: acmeserverless
