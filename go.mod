@@ -1,6 +1,6 @@
 module github.com/retgits/acme-serverless-user
 
-replace github.com/wavefronthq/wavefront-lambda-go => github.com/retgits/wavefront-lambda-go v0.0.0-20200402174306-c89629d5856a
+replace github.com/wavefronthq/wavefront-lambda-go => github.com/retgits/wavefront-lambda-go v0.0.0-20200406192713-6ff30b7e488c
 
 go 1.13
 
