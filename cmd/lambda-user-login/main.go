@@ -11,7 +11,7 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/getsentry/sentry-go"
-	user "github.com/retgits/acme-serverless-user"
+	acmeserverless "github.com/retgits/acme-serverless"
 	"github.com/retgits/acme-serverless-user/internal/datastore/dynamodb"
 	wflambda "github.com/wavefronthq/wavefront-lambda-go"
 )
@@ -39,7 +39,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	headers["Access-Control-Allow-Origin"] = "*"
 
 	// Create the key attributes
-	usr, err := user.UnmarshalUser(request.Body)
+	usr, err := acmeserverless.UnmarshalUser(request.Body)
 	if err != nil {
 		return handleError("unmarshalling user", headers, err)
 	}
@@ -55,7 +55,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return handleError("generating accesstoken", headers, err)
 	}
 
-	res := user.LoginResponse{
+	res := acmeserverless.LoginResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		Status:       http.StatusOK,
@@ -111,7 +111,7 @@ func GenerateTokenPair(username string, uuid string) (string, string, error) {
 	rtClaims["sub"] = uuid
 	rtClaims["exp"] = expirationTimeRefreshToken
 
-	refreshTokenString, err := refreshToken.SignedString(user.RTJWTKey)
+	refreshTokenString, err := refreshToken.SignedString([]byte("my_secret_key_2"))
 	if err != nil {
 		return "", "", err
 	}
@@ -133,7 +133,7 @@ func GenerateAccessToken(username string, uuid string) (string, error) {
 	claims["sub"] = uuid
 
 	// Create the JWT string
-	tokenString, err := token.SignedString(user.ATJWTKey)
+	tokenString, err := token.SignedString([]byte("my_secret_key"))
 	if err != nil {
 		return "", err
 	}

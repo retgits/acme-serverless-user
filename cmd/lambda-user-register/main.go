@@ -11,7 +11,7 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/getsentry/sentry-go"
 	"github.com/gofrs/uuid"
-	user "github.com/retgits/acme-serverless-user"
+	acmeserverless "github.com/retgits/acme-serverless"
 	"github.com/retgits/acme-serverless-user/internal/datastore/dynamodb"
 	wflambda "github.com/wavefronthq/wavefront-lambda-go"
 )
@@ -39,7 +39,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	headers["Access-Control-Allow-Origin"] = "*"
 
 	// Update the user with an ID
-	usr, err := user.UnmarshalUser(request.Body)
+	usr, err := acmeserverless.UnmarshalUser(request.Body)
 	if err != nil {
 		return handleError("unmarshalling user", headers, err)
 	}
@@ -51,7 +51,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		return handleError("getting users", headers, err)
 	}
 
-	status := user.RegisterResponse{
+	status := acmeserverless.RegisterUserResponse{
 		Message:    "User created successfully!",
 		ResourceID: usr.ID,
 		Status:     http.StatusCreated,

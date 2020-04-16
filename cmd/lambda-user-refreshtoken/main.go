@@ -11,7 +11,7 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/getsentry/sentry-go"
-	user "github.com/retgits/acme-serverless-user"
+	acmeserverless "github.com/retgits/acme-serverless"
 	wflambda "github.com/wavefronthq/wavefront-lambda-go"
 )
 
@@ -38,7 +38,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	headers["Access-Control-Allow-Origin"] = "*"
 
 	// Create the key attributes
-	login, err := user.UnmarshalLoginResponse(request.Body)
+	login, err := acmeserverless.UnmarshalLoginResponse(request.Body)
 	if err != nil {
 		return handleError("unmarshalling login", headers, err)
 	}
@@ -46,7 +46,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 	valid, id, _, err := ValidateToken(login.RefreshToken)
 
 	if !valid || id == "" {
-		res := user.VerifyTokenResponse{
+		res := acmeserverless.VerifyTokenResponse{
 			Message: "Invalid Key. User Not Authorized",
 			Status:  http.StatusForbidden,
 		}
@@ -66,7 +66,7 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	newToken, _ := GenerateAccessToken("eric", id)
 
-	res := user.LoginResponse{
+	res := acmeserverless.LoginResponse{
 		AccessToken:  newToken,
 		RefreshToken: login.RefreshToken,
 		Status:       http.StatusOK,
@@ -118,7 +118,7 @@ func GenerateAccessToken(username string, uuid string) (string, error) {
 	claims["sub"] = uuid
 
 	// Create the JWT string
-	tokenString, err := token.SignedString(user.ATJWTKey)
+	tokenString, err := token.SignedString([]byte("my_secret_key"))
 	if err != nil {
 		return "", err
 	}
@@ -141,9 +141,9 @@ func ValidateToken(tokenString string) (bool, string, string, error) {
 		// If the "kid" (Key ID) is equal to signin_1, then it is compared against access_token secret key, else if it
 		// is equal to signin_2 , it is compared against refresh_token secret key.
 		if keyID == "signin_1" {
-			key = user.ATJWTKey
+			key = []byte("my_secret_key")
 		} else if keyID == "signin_2" {
-			key = user.RTJWTKey
+			key = []byte("my_secret_key_2")
 		}
 		return key, nil
 	})

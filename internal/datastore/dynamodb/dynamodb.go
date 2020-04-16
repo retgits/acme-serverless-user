@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
-	user "github.com/retgits/acme-serverless-user"
+	acmeserverless "github.com/retgits/acme-serverless"
 	"github.com/retgits/acme-serverless-user/internal/datastore"
 )
 
@@ -41,7 +41,7 @@ func New() datastore.Manager {
 }
 
 // GetUser retrieves a single user from DynamoDB based on the userID
-func (m manager) GetUser(userID string) (user.User, error) {
+func (m manager) GetUser(userID string) (acmeserverless.User, error) {
 	// Create a map of DynamoDB Attribute Values containing the table keys
 	// for the access pattern PK = USER SK = ID
 	km := make(map[string]*dynamodb.AttributeValue)
@@ -62,21 +62,21 @@ func (m manager) GetUser(userID string) (user.User, error) {
 	// Execute the DynamoDB query
 	qo, err := dbs.Query(qi)
 	if err != nil {
-		return user.User{}, err
+		return acmeserverless.User{}, err
 	}
 
 	// Return an error if no user was found
 	if len(qo.Items) == 0 {
-		return user.User{}, fmt.Errorf("no user found with id %s", userID)
+		return acmeserverless.User{}, fmt.Errorf("no user found with id %s", userID)
 	}
 
 	// Create a user struct from the data
 	str := *qo.Items[0]["Payload"].S
-	return user.UnmarshalUser(str)
+	return acmeserverless.UnmarshalUser(str)
 }
 
 // FindUser retrieves a single user from DynamoDB based on the username
-func (m manager) FindUser(username string) (user.User, error) {
+func (m manager) FindUser(username string) (acmeserverless.User, error) {
 	// Create a map of DynamoDB Attribute Values containing the table keys
 	// for the access pattern PK = USER KeyID = ID
 	km := make(map[string]*dynamodb.AttributeValue)
@@ -98,21 +98,21 @@ func (m manager) FindUser(username string) (user.User, error) {
 	// Execute the DynamoDB query
 	qo, err := dbs.Query(qi)
 	if err != nil {
-		return user.User{}, err
+		return acmeserverless.User{}, err
 	}
 
 	// Return an error if no user was found
 	if len(qo.Items) == 0 {
-		return user.User{}, fmt.Errorf("no user found with name %s", username)
+		return acmeserverless.User{}, fmt.Errorf("no user found with name %s", username)
 	}
 
 	// Create a user struct from the data
 	str := *qo.Items[0]["Payload"].S
-	return user.UnmarshalUser(str)
+	return acmeserverless.UnmarshalUser(str)
 }
 
 // AllUsers retrieves all users from DynamoDB
-func (m manager) AllUsers() ([]user.User, error) {
+func (m manager) AllUsers() ([]acmeserverless.User, error) {
 	// Create a map of DynamoDB Attribute Values containing the table keys
 	// for the access pattern PK = USER
 	km := make(map[string]*dynamodb.AttributeValue)
@@ -132,11 +132,11 @@ func (m manager) AllUsers() ([]user.User, error) {
 		return nil, err
 	}
 
-	users := make([]user.User, len(qo.Items))
+	users := make([]acmeserverless.User, len(qo.Items))
 
 	for idx, ct := range qo.Items {
 		str := *ct["Payload"].S
-		usr, err := user.UnmarshalUser(str)
+		usr, err := acmeserverless.UnmarshalUser(str)
 		if err != nil {
 			log.Println(fmt.Sprintf("error unmarshalling user data: %s", err.Error()))
 			continue
@@ -148,7 +148,7 @@ func (m manager) AllUsers() ([]user.User, error) {
 }
 
 // AddUser stores a new user in Amazon DynamoDB
-func (m manager) AddUser(usr user.User) error {
+func (m manager) AddUser(usr acmeserverless.User) error {
 	// Create a JSON encoded string of the user
 	payload, err := usr.Marshal()
 	if err != nil {
