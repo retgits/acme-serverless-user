@@ -53,3 +53,4 @@ Pulumi.*.yaml
 # Builds and executables
 *.zip,
 cmd/*/lambda-user-*
+server

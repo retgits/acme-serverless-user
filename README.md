@@ -244,6 +244,60 @@ When the user is successfully created, an HTTP/201 message is returned
 }
 ```
 
+## Building for Google Cloud Run
+
+If you have Docker installed locally, you can use `docker build` to create a container which can be used to try out the user service locally and for Google Cloud Run.
+
+To build your container image using Docker:
+
+Run the command:
+
+```bash
+VERSION=`git describe --tags --always --dirty="-dev"`
+docker build -f ./cmd/cloudrun-user-http/Dockerfile . -t gcr.io/[PROJECT-ID]/user:$VERSION
+```
+
+Replace `[PROJECT-ID]` with your Google Cloud project ID
+
+If you have not yet configured Docker to use the gcloud command-line tool to authenticate requests to Container Registry, do so now using the command:
+
+```bash
+gcloud auth configure-docker
+```
+
+You need to do this before you can push or pull images using Docker. You only need to do it once.
+
+Push the container image to Container Registry:
+
+```bash
+docker push gcr.io/[PROJECT-ID]/user:$VERSION
+```
+
+The container relies on the environment variables:
+
+* SENTRY_DSN: The DSN to connect to Sentry
+* K_SERVICE: The name of the service (in Google Cloud Run this variable is automatically set, defaults to `user` if not set)
+* VERSION: The version you're running (will default to `dev` if not set)
+* PORT: The port number the service will listen on (will default to `8080` if not set)
+* STAGE: The environment in which you're running
+* WAVEFRONT_TOKEN: The token to connect to Wavefront
+* WAVEFRONT_URL: The URL to connect to Wavefront (will default to `debug` if not set)
+* MONGO_USERNAME: The username to connect to MongoDB
+* MONGO_PASSWORD: The password to connect to MongoDB
+* MONGO_HOSTNAME: The hostname of the MongoDB server
+* MONGO_PORT: The port number of the MongoDB server
+
+A `docker run`, with all options, is:
+
+```bash
+docker run --rm -it -p 8080:8080 -e SENTRY_DSN=abcd -e K_SERVICE=user \
+  -e VERSION=$VERSION -e PORT=8080 -e STAGE=dev -e WAVEFRONT_URL=https://my-url.wavefront.com \
+  -e WAVEFRONT_TOKEN=efgh -e MONGO_USERNAME=admin -e MONGO_PASSWORD=admin \
+  -e MONGO_HOSTNAME=localhost -e MONGO_PORT=27017 gcr.io/[PROJECT-ID]/user:$VERSION
+```
+
+Replace `[PROJECT-ID]` with your Google Cloud project ID
+
 ## Troubleshooting
 
 In case the API Gateway responds with `{"message":"Forbidden"}`, there is likely an issue with the deployment of the API Gateway. To solve this problem, you can use the AWS CLI. To confirm this, run `aws apigateway get-deployments --rest-api-id <rest-api-id>`. If that returns no deployments, you can create a deployment for the *prod* stage with `aws apigateway create-deployment --rest-api-id <rest-api-id> --stage-name prod --stage-description 'Prod Stage' --description 'deployment to the prod stage'`.
