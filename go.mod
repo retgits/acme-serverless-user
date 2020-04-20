@@ -11,11 +11,11 @@ require (
 	github.com/fasthttp/router v1.0.2
 	github.com/getsentry/sentry-go v0.6.0
 	github.com/gofrs/uuid v3.2.0+incompatible
-	github.com/pulumi/pulumi-aws/sdk v1.31.0
-	github.com/pulumi/pulumi/sdk v1.14.1
+	github.com/pulumi/pulumi-aws/sdk/v2 v2.0.0
+	github.com/pulumi/pulumi/sdk/v2 v2.0.0
 	github.com/retgits/acme-serverless v0.3.0
 	github.com/retgits/gcr-wavefront v0.3.0
-	github.com/retgits/pulumi-helpers v0.1.7
+	github.com/retgits/pulumi-helpers/v2 v2.0.0
 	github.com/valyala/fasthttp v1.10.0
 	github.com/wavefronthq/wavefront-lambda-go v0.0.0-20190812171804-d9475d6695cc
 	go.mongodb.org/mongo-driver v1.4.0-beta1.0.20200416213727-891a5fc9374a
