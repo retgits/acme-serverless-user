@@ -17,12 +17,14 @@ jobs:
             echo "  awsconfig:generic:" >> ~/project/pulumi/Pulumi.dev.yaml
             echo "    accountid: \"$AWS_ACCOUNT_ID\"" >> ~/project/pulumi/Pulumi.dev.yaml
             echo "    sentrydsn: $SENTRY_DSN" >> ~/project/pulumi/Pulumi.dev.yaml
+            echo "    wavefronturl: $WAVEFRONT_URL" >> ~/project/pulumi/Pulumi.dev.yaml
+            echo "    wavefronttoken: $WAVEFRONT_TOKEN" >> ~/project/pulumi/Pulumi.dev.yaml
             echo "  awsconfig:tags:" >> ~/project/pulumi/Pulumi.dev.yaml
             echo "    author: retgits" >> ~/project/pulumi/Pulumi.dev.yaml
             echo "    feature: acmeserverless" >> ~/project/pulumi/Pulumi.dev.yaml
             echo "    team: vcs" >> ~/project/pulumi/Pulumi.dev.yaml
             echo "    version: 0.2.0" >> ~/project/pulumi/Pulumi.dev.yaml
-            pulumi plugin install resource aws 1.24.0
+            pulumi plugin install resource aws 2.0.0
       - pulumi/update:
           stack: retgits/dev
           working_directory: ~/project/pulumi
