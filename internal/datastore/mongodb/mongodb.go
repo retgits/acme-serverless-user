@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	acmeserverless "github.com/retgits/acme-serverless"
@@ -32,7 +33,10 @@ func init() {
 	hostname := os.Getenv("MONGO_HOSTNAME")
 	port := os.Getenv("MONGO_PORT")
 
-	connString := fmt.Sprintf("mongodb://%s:%s@%s:%s", username, password, hostname, port)
+	connString := fmt.Sprintf("mongodb+srv://%s:%s@%s:%s", username, password, hostname, port)
+	if strings.HasSuffix(connString, ":") {
+		connString = connString[:len(connString)-1]
+	}
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(connString))
 	if err != nil {
